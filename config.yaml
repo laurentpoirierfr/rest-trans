@@ -1,0 +1,35 @@
+server:
+  host: 0.0.0.0
+  port: 3000
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  name: app
+  schemas:
+    - public
+  sslmode: disable
+  pool:
+    max_open: 25
+    max_idle: 5
+    conn_max_life: 1h
+    conn_max_idle: 10m
+
+permissions:
+  users:
+    methods: [GET, HEAD]
+  projects:
+    methods: [GET, HEAD, POST, PATCH, DELETE]
+  "*":
+    methods: all
+
+rpc:
+  "*":
+    enabled: true
+
+transactions:
+  enabled: true
+  ttl: 30m
+  cleanup_interval: 60s

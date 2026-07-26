@@ -1,0 +1,36 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+
+# Go
+vendor/
+go.work
+go.work.sum
+
+# Environment / Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yaml
+
+# Logs
+*.log
+
+__debug*
