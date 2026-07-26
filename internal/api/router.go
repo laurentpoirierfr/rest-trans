@@ -22,7 +22,7 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(loggingMiddleware())
-	r.Use(corsMiddleware())
+	r.Use(corsMiddleware(store, cfg))
 	r.Use(methodGuard(store, cfg))
 	if txManager != nil {
 		r.Use(transaction.Middleware(txManager))
@@ -37,9 +37,13 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 			tablesBySchema := store.TablesBySchema(sName)
 			names := make([]string, 0, len(tablesBySchema))
 			for name := range tablesBySchema {
-				names = append(names, name)
+				if !cfg.IsTableHidden(name) {
+					names = append(names, name)
+				}
 			}
-			tables[sName] = names
+			if len(names) > 0 {
+				tables[sName] = names
+			}
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"version": "1.0.0",
@@ -123,12 +127,28 @@ func loggingMiddleware() gin.HandlerFunc {
 	}
 }
 
-func corsMiddleware() gin.HandlerFunc {
+func corsMiddleware(store *schema.SchemaStore, cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, HEAD, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, Prefer, Range, Accept-Profile, Content-Profile, Authorization-Transaction")
 		c.Header("Access-Control-Expose-Headers", "Content-Range, Range-Unit, X-Total-Count, Content-Profile")
+
+		tableName := c.Param("table")
+		schemaName := c.Param("schema")
+
+		allowed := []string{"OPTIONS"}
+		for _, method := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"} {
+			if t, ok := store.GetTable(schemaName, tableName); ok {
+				if t.IsMethodAllowed(method) && cfg.IsMethodAllowed(tableName, method) {
+					allowed = append(allowed, method)
+				}
+			} else {
+				if cfg.IsMethodAllowed(tableName, method) {
+					allowed = append(allowed, method)
+				}
+			}
+		}
+		c.Header("Access-Control-Allow-Methods", strings.Join(allowed, ", "))
 
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -139,6 +159,4 @@ func corsMiddleware() gin.HandlerFunc {
 	}
 }
 
-func containsSubstr(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
+

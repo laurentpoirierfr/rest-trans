@@ -412,7 +412,7 @@ func (b *Builder) buildOrderBy() string {
 	for _, item := range b.Params.Order {
 		part := fmt.Sprintf("%s %s", item.Column, strings.ToUpper(string(item.Direction)))
 		if item.Nulls != "" {
-			part += " " + item.Nulls
+			part += " " + strings.ToUpper(item.Nulls)
 		}
 		parts = append(parts, part)
 	}

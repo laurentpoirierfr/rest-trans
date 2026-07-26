@@ -483,7 +483,7 @@ func parseOrder(value string) ([]OrderItem, error) {
 
 		item := OrderItem{
 			Direction: Asc,
-			Nulls:     "nullsfirst",
+			Nulls:     "nulls first",
 		}
 
 		chunks := strings.Split(part, ".")
@@ -496,7 +496,7 @@ func parseOrder(value string) ([]OrderItem, error) {
 			case "desc":
 				item.Direction = Desc
 			case "nullsfirst":
-				item.Nulls = "nullsfirst"
+				item.Nulls = "nulls first"
 			case "nullslast":
 				item.Nulls = "nullslast"
 			}

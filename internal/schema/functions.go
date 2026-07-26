@@ -83,7 +83,15 @@ func parseFuncArgs(argTypesText, argNamesText string) []FuncArg {
 	}
 
 	argTypesText = strings.Trim(argTypesText, "{}")
-	typeStrs := strings.Split(argTypesText, ",")
+
+	var typeStrs []string
+	if strings.Contains(argTypesText, " ") {
+		typeStrs = strings.Fields(argTypesText)
+	} else if strings.Contains(argTypesText, ",") {
+		typeStrs = strings.Split(argTypesText, ",")
+	} else {
+		typeStrs = []string{argTypesText}
+	}
 
 	numInputArgs := len(typeStrs)
 	var allNames []string

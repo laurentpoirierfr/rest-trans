@@ -16,6 +16,7 @@ type Config struct {
 	Permissions  map[string]PermConfig   `mapstructure:"permissions"`
 	RPC          map[string]RPCConfig    `mapstructure:"rpc"`
 	Transactions TransactionsConfig      `mapstructure:"transactions"`
+	HiddenTables []string                `mapstructure:"hidden_tables"`
 }
 
 type TransactionsConfig struct {
@@ -188,6 +189,20 @@ func (c *Config) IsRPCEnabled(funcName string) bool {
 		return r.Enabled
 	}
 	return true
+}
+
+func (c *Config) IsTableHidden(tableName string) bool {
+	for _, pattern := range c.HiddenTables {
+		if strings.HasSuffix(pattern, "*") {
+			prefix := strings.TrimSuffix(pattern, "*")
+			if strings.HasPrefix(tableName, prefix) {
+				return true
+			}
+		} else if pattern == tableName {
+			return true
+		}
+	}
+	return false
 }
 
 func methodsContain(methods []string, method string) bool {

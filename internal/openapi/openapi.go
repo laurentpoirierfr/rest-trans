@@ -91,6 +91,9 @@ func Generate(store *schema.SchemaStore, cfg *config.Config) *Spec {
 	for _, sName := range store.SchemaNames() {
 		tables := store.TablesBySchema(sName)
 		for tableName, table := range tables {
+			if cfg.IsTableHidden(tableName) {
+				continue
+			}
 			path := "/" + sName + "/" + tableName
 			item := make(PathItem)
 

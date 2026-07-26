@@ -67,11 +67,21 @@ func (h *Handler) HandleRPC(c *gin.Context) {
 
 	for i, arg := range fn.Arguments {
 		if val, exists := args[arg.Name]; exists {
-			callArgs = append(callArgs, val)
+			if arg.Type == "jsonb" || arg.Type == "json" {
+				if b, ok := val.([]byte); ok {
+					callArgs = append(callArgs, b)
+				} else {
+					jsonBytes, _ := json.Marshal(val)
+					callArgs = append(callArgs, jsonBytes)
+				}
+			} else {
+				callArgs = append(callArgs, val)
+			}
 		} else {
 			callArgs = append(callArgs, nil)
 		}
-		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+		pgType := goTypeToPGCast(arg.Type)
+		placeholders = append(placeholders, fmt.Sprintf("$%d::%s", i+1, pgType))
 	}
 
 	qualified := funcName
@@ -130,4 +140,25 @@ func (h *Handler) HandleRPC(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+func goTypeToPGCast(pgType string) string {
+	switch strings.ToLower(pgType) {
+	case "integer", "int", "int4", "bigint", "int8", "smallint", "int2",
+		"serial", "bigserial":
+		return "int"
+	case "real", "float4", "double precision", "float8", "numeric", "decimal":
+		return "numeric"
+	case "boolean", "bool":
+		return "boolean"
+	case "json", "jsonb":
+		return "jsonb"
+	case "uuid":
+		return "uuid"
+	case "date", "timestamp", "timestamptz",
+		"timestamp without time zone", "timestamp with time zone":
+		return "timestamptz"
+	default:
+		return "text"
+	}
 }

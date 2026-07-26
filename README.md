@@ -39,6 +39,7 @@ graph LR
 - **Permissions HTTP par table** via commentaires PostgreSQL (`@allow`, `@deny`) ou `config.yaml`
 - **Config Viper** : fichier YAML + overrides par variables d'environnement
 - **Pool de connexions** paramétrable (max_open, max_idle, conn_max_life, conn_max_idle)
+- **Tables cachées** : `hidden_tables` avec wildcards (`rest_*`) pour masquer de l'OpenAPI et `/info`
 
 ### Phase 4 — Transactions (Saga Pattern)
 - **Transactions distribuées** au niveau HTTP
@@ -57,11 +58,30 @@ git clone https://github.com/laurentpoirierfr/rest-trans.git
 cd rest-trans
 
 # Lancer avec Docker Compose (PostgreSQL + app)
-docker compose -f infras/compose.yaml up -d
+make docker-compose-up
 
 # Ou lancer en local
-go run ./cmd/rest-trans/
+make run
 ```
+
+## Commandes Make
+
+| Commande | Description |
+|----------|-------------|
+| `make build` | Compiler le binaire |
+| `make run` | Lancer en local |
+| `make test` | Lancer les tests d'intégration |
+| `make test-integration` | Tests avec verbose |
+| `make test-race` | Tests avec race detector |
+| `make docker-build` | Build l'image Docker |
+| `make docker-compose-up` | Démarrer PostgreSQL + app |
+| `make docker-compose-down` | Arrêter Docker Compose |
+| `make dev-docker` | DB Docker + lancer en local |
+| `make fmt` | Formater le code |
+| `make lint` | Linter le code |
+| `make info` | Afficher les infos de l'API |
+| `make openapi` | Afficher le spec OpenAPI |
+| `make help` | Afficher toutes les commandes |
 
 ## Configuration
 
@@ -103,6 +123,11 @@ transactions:
   enabled: true
   ttl: 30m
   cleanup_interval: 60s
+
+# Tables cachées de l'OpenAPI et /info
+# hidden_tables:
+#   - rest_*
+#   - internal_*
 ```
 
 ### Variables d'environnement
@@ -294,9 +319,17 @@ rest-trans/
 │   ├── rpc/               # Handler RPC
 │   ├── schema/            # Introspection PostgreSQL
 │   └── transaction/       # Saga pattern (tx manager + middleware)
+├── tests/                 # Tests d'intégration (testcontainers)
+│   ├── testutil/          # Helper PostgreSQL + serveur
+│   ├── crud_test.go       # Tests CRUD
+│   ├── filter_test.go     # Tests filtres/pagination
+│   ├── rpc_test.go        # Tests RPC
+│   ├── transaction_test.go# Tests transactions
+│   └── openapi_test.go    # Tests OpenAPI
 ├── infras/
 │   ├── compose.yaml       # Docker Compose
 │   └── init-db/           # Scripts d'initialisation SQL
+├── Makefile               # Commandes de build/test/docker
 └── config.yaml            # Configuration par défaut
 ```
 
@@ -307,6 +340,8 @@ rest-trans/
 - **lib/pq** — driver PostgreSQL
 - **Viper** — configuration
 - **PostgreSQL** 16+
+- **Testcontainers** — tests d'intégration
+- **Make** — commandes de build
 
 ## License
 

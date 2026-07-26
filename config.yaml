@@ -18,12 +18,14 @@ database:
     conn_max_idle: 10m
 
 permissions:
-  users:
-    methods: [GET, HEAD]
-  projects:
-    methods: [GET, HEAD, POST, PATCH, DELETE]
   "*":
     methods: all
+  # users:
+  #   methods: [GET, HEAD]
+  # projects:
+  #   methods: [GET, HEAD, POST, PATCH, DELETE]
+  # "*":
+  #   methods: [GET]
 
 rpc:
   "*":
@@ -33,3 +35,8 @@ transactions:
   enabled: true
   ttl: 30m
   cleanup_interval: 60s
+
+# Tables cachées de l'OpenAPI et /info (supporte les wildcards : rest_*)
+hidden_tables:
+  - rest_*
+  - internal_*
