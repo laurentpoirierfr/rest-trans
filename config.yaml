@@ -39,6 +39,16 @@ transactions:
 hot_reload:
   enabled: false
   interval: 30s
+  auto_notify_triggers: true
+
+rate_limit:
+  enabled: false
+  requests_per_second: 10
+  burst: 20
+  # per_table:
+  #   users:
+  #     requests_per_second: 5
+  #     burst: 10
 
 # Tables cachées de l'OpenAPI et /info (supporte les wildcards : rest_*)
 hidden_tables:

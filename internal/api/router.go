@@ -10,15 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
 	"github.com/laurentpoirierfr/rest-trans/internal/docs"
+	"github.com/laurentpoirierfr/rest-trans/internal/ihm"
 	"github.com/laurentpoirierfr/rest-trans/internal/metrics"
 	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/openapi"
+	"github.com/laurentpoirierfr/rest-trans/internal/ratelimit"
 	"github.com/laurentpoirierfr/rest-trans/internal/rpc"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 )
 
-func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub) *gin.Engine {
+func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub, rlManager *ratelimit.LimiterManager) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
@@ -26,6 +28,9 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	r.Use(loggingMiddleware())
 	r.Use(metrics.Middleware())
 	r.Use(corsMiddleware(store, cfg))
+	if rlManager != nil {
+		r.Use(rlManager.Middleware())
+	}
 	r.Use(methodGuard(store, cfg))
 	if txManager != nil {
 		r.Use(transaction.Middleware(txManager))
@@ -37,6 +42,7 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	r.GET("/ops/liveness", metrics.LivenessHandler())
 	r.GET("/ops/readiness", metrics.ReadinessHandler(db))
 	r.GET("/ops/metrics", metrics.MetricsHandler())
+	r.GET("/ops/streams", metrics.StreamsHandler(store))
 
 	r.GET("/info", func(c *gin.Context) {
 		tables := make(map[string][]string)
@@ -65,6 +71,7 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	})
 
 	docs.RegisterRoutes(r)
+	ihm.RegisterRoutes(r)
 
 	r.POST("/:schema/rpc/:function", rpcH.HandleRPC)
 

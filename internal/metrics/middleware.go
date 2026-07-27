@@ -3,11 +3,13 @@ package metrics
 import (
 	"database/sql"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 )
 
 func Middleware() gin.HandlerFunc {
@@ -60,5 +62,21 @@ func MetricsHandler() gin.HandlerFunc {
 	h := promhttp.Handler()
 	return func(c *gin.Context) {
 		h.ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func StreamsHandler(store *schema.SchemaStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result := make(map[string][]string)
+		for _, schemaName := range store.SchemaNames() {
+			tables := store.TablesBySchema(schemaName)
+			names := make([]string, 0, len(tables))
+			for name := range tables {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			result[schemaName] = names
+		}
+		c.JSON(http.StatusOK, result)
 	}
 }

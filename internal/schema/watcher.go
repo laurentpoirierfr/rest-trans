@@ -3,23 +3,26 @@ package schema
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"time"
 )
 
 type Watcher struct {
-	db       *sql.DB
-	store    *SchemaStore
-	schemas  []string
-	interval time.Duration
+	db         *sql.DB
+	store      *SchemaStore
+	schemas    []string
+	interval   time.Duration
+	autoNotify bool
 }
 
-func NewWatcher(db *sql.DB, store *SchemaStore, schemas []string, interval time.Duration) *Watcher {
+func NewWatcher(db *sql.DB, store *SchemaStore, schemas []string, interval time.Duration, autoNotify bool) *Watcher {
 	return &Watcher{
-		db:       db,
-		store:    store,
-		schemas:  schemas,
-		interval: interval,
+		db:         db,
+		store:      store,
+		schemas:    schemas,
+		interval:   interval,
+		autoNotify: autoNotify,
 	}
 }
 
@@ -79,6 +82,9 @@ func (w *Watcher) detectChanges(newSchemas map[string]map[string]*Table, newFunc
 			old, exists := oldTables[name]
 			if !exists {
 				slog.Info("hot-reload: new table detected", "schema", s, "table", name)
+				if w.autoNotify {
+					w.ensureNotifyTrigger(s, name)
+				}
 				continue
 			}
 			detectColumnChanges(s, name, old, table)
@@ -151,4 +157,43 @@ func trimSpace(s string) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func (w *Watcher) ensureNotifyTrigger(schema, table string) {
+	funcSQL := `CREATE OR REPLACE FUNCTION rest_notify() RETURNS trigger AS $$
+DECLARE
+    payload jsonb;
+    channel text;
+BEGIN
+    channel := TG_TABLE_SCHEMA || '_' || TG_TABLE_NAME;
+    IF TG_OP = 'INSERT' THEN
+        payload := jsonb_build_object('schema', TG_TABLE_SCHEMA, 'table', TG_TABLE_NAME, 'op', TG_OP, 'new', to_jsonb(NEW));
+    ELSIF TG_OP = 'UPDATE' THEN
+        payload := jsonb_build_object('schema', TG_TABLE_SCHEMA, 'table', TG_TABLE_NAME, 'op', TG_OP, 'old', to_jsonb(OLD), 'new', to_jsonb(NEW));
+    ELSIF TG_OP = 'DELETE' THEN
+        payload := jsonb_build_object('schema', TG_TABLE_SCHEMA, 'table', TG_TABLE_NAME, 'op', TG_OP, 'old', to_jsonb(OLD));
+    END IF;
+    PERFORM pg_notify('rest_' || channel, payload::text);
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;`
+
+	if _, err := w.db.Exec(funcSQL); err != nil {
+		slog.Error("hot-reload: failed to ensure rest_notify() function", "error", err)
+		return
+	}
+
+	triggerName := table + "_notify"
+	triggerSQL := fmt.Sprintf(
+		`CREATE TRIGGER %s AFTER INSERT OR UPDATE OR DELETE ON %s.%s FOR EACH ROW EXECUTE FUNCTION rest_notify()`,
+		triggerName, schema, table,
+	)
+
+	if _, err := w.db.Exec(triggerSQL); err != nil {
+		slog.Error("hot-reload: failed to create notify trigger",
+			"schema", schema, "table", table, "error", err)
+		return
+	}
+
+	slog.Info("hot-reload: notify trigger created", "schema", schema, "table", table)
 }

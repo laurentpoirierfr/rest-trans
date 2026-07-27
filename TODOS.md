@@ -12,8 +12,9 @@
 - [ ] **Full-text search** — Filtre `_fts=col.search_term` avec tsvector/tsquery
 - [ ] **View support amélioré** — Les vues sont déjà introspectées mais les mutations devraient être bloquées proprement (au lieu du 400 actuel)
 - [x] **Metrics/Prometheus** — `/ops/metrics` avec compteurs de requêtes, latence, erreurs
-- [ ] **Rate limiting** — Configurable par table/IP
+- [x] **Rate limiting** — Configurable par table/IP
 - [x] **SSE** — `GET /:schema/:table/_stream` pour du real-time (LISTEN/NOTIFY)
+- [ ] **IHM index.html** — Route `/` servant un `index.html` avec : liens vers `/docs`, état de santé du composant (`/ops/readiness`), console d'affichage des notifications SSE de la base
 
 ## Quick wins
 

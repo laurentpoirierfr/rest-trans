@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.3.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **Rate limiting** — Limitation du débit par IP et/ou par table via token bucket (`golang.org/x/time/rate`)
+  - Configuration globale (`requests_per_second` + `burst`)
+  - Overrides par table dans `rate_limit.per_table`
+  - Headers `Retry-After` et `X-RateLimit-Limit` en cas de 429
+  - Code d'erreur structuré `PGRST429`
+  - Cleanup automatique des limiters inactifs (10 min)
+- **IHM index.html** — Route `/` servant une interface web vanilla JS
+  - Lien rapide vers `/docs` (Swagger UI)
+  - État de santé en temps réel (polling toutes les 5s via `/ops/readiness`)
+  - Console SSE interactive avec sélection schema/table et auto-scroll
+  - Endpoint `/ops/streams` retournant la map `schema → [tables]` pour peupler les sélecteurs
+  - Embed via `go:embed` (pas de fichier externe)
+- **Auto notify triggers** — Création automatique des triggers SSE lors du hot-reload
+  - Lorsqu'une nouvelle table est détectée, le watcher crée `rest_notify()` + le trigger `{table}_notify`
+  - Désactivation possible via `auto_notify_triggers: false` dans la config
+
+### Configuration ajoutée
+
+```yaml
+rate_limit:
+  enabled: false
+  requests_per_second: 10
+  burst: 20
+  # per_table:
+  #   users:
+  #     requests_per_second: 5
+  #     burst: 10
+
+hot_reload:
+  enabled: false
+  interval: 30s
+  auto_notify_triggers: true
+```
+
+### Endpoints ajoutés
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | IHM index.html |
+| `GET /ops/streams` | Map des schemas/tables disponibles pour SSE |
+
+---
+
 ## v0.2.0
 
 **Date :** 27 juillet 2026
