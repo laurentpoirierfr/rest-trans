@@ -249,7 +249,7 @@ curl -X POST http://localhost:3000/public/rpc/get_user_profile \
 ```mermaid
 flowchart TD
     A[Requête HTTP] --> B{Commentaire PG?}
-    B -->|@allow / @deny| C[Appliquer restriction PG]
+    B -->|@allow, @deny| C[Appliquer restriction PG]
     B -->|Pas de commentaire| D{config.yaml?}
     D -->|permissions.table.methods| E[Appliquer restriction config]
     D -->|Pas de config| F[Tous les verbs autorisés]
