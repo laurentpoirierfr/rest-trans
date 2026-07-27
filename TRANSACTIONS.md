@@ -182,6 +182,10 @@ Dans le cadre d'une transaction, vous pouvez utiliser les opérations CRUD suiva
 
 ### Pattern Saga
 
+Le **Saga Pattern** est un mécanisme de transaction distribuée qui décompose une opération complexe en une séquence d'étapes locales. Si une étape échoue, des **compensations** (annulations inversées) sont exécutées pour restaurer l'incohérence. Contrairement à une transaction ACID classique qui maintient un verrou sur toutes les ressources, Saga libère chaque verrou après chaque étape, au prix d'une gestion explicite des annulations.
+
+Dans rest-trans, le choix est simplifié : les opérations sont **staging** (stockées en attente) sans être exécutées, puis exécutées en une seule transaction atomique lors du commit. Si le commit échoue, les opérations sont simplement supprimées — pas de compensation distribuée nécessaire car rien n'a été appliqué.
+
 Au lieu de maintenir une vraie transaction PostgreSQL ouverte (liée à une seule connexion de base), rest-trans utilise le **pattern Saga** :
 
 1. **Démarrer :** Créer un enregistrement de transaction dans `rest_transactions` (base principale)
