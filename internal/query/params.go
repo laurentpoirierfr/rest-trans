@@ -120,6 +120,12 @@ type Embed struct {
 	Select []string
 }
 
+type FtsFilter struct {
+	Column     string
+	SearchTerm string
+	Negate     bool
+}
+
 type Aggregate struct {
 	Func string
 	Col  string
@@ -129,6 +135,7 @@ type Aggregate struct {
 type Params struct {
 	Filters    []Filter
 	Logicals   []LogicalFilter
+	FtsFilters []FtsFilter
 	Order      []OrderItem
 	Select     []string
 	Embeds     []Embed
@@ -191,6 +198,12 @@ func Parse(rawQuery string, tableColumns map[string]bool) (*Params, error) {
 				return nil, err
 			}
 			params.Logicals = append(params.Logicals, lf)
+		case "_fts":
+			fts, err := parseFtsFilter(value, tableColumns)
+			if err != nil {
+				return nil, err
+			}
+			params.FtsFilters = append(params.FtsFilters, fts)
 		default:
 			if strings.HasPrefix(key, "_not.") {
 				subkey := key[5:]
@@ -272,6 +285,32 @@ func parseFilterWithPrefix(key, value string, negate bool, tableColumns map[stri
 		Value:    val,
 		Negate:   negate,
 		Modifier: modifier,
+	}, nil
+}
+
+func parseFtsFilter(value string, tableColumns map[string]bool) (FtsFilter, error) {
+	negate := false
+	if strings.HasPrefix(value, "not.") {
+		negate = true
+		value = value[4:]
+	}
+
+	dotIdx := strings.IndexByte(value, '.')
+	if dotIdx <= 0 {
+		return FtsFilter{}, fmt.Errorf("invalid _fts format: %s (expected column.search_term)", value)
+	}
+
+	col := value[:dotIdx]
+	searchTerm := value[dotIdx+1:]
+
+	if !tableColumns[col] {
+		return FtsFilter{}, fmt.Errorf("column '%s' not found", col)
+	}
+
+	return FtsFilter{
+		Column:     col,
+		SearchTerm: searchTerm,
+		Negate:     negate,
 	}, nil
 }
 

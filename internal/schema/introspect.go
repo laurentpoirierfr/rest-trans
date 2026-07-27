@@ -303,17 +303,20 @@ func introspectPermissions(db *sql.DB, schemaName string, tables map[string]*Tab
 		if !ok {
 			continue
 		}
-		allowed, denied := parseComment(comment)
+		allowed, denied, ftsLanguage := parseComment(comment)
 		if len(allowed) > 0 {
 			tbl.AllowedMethods = allowed
 		}
 		if len(denied) > 0 {
 			tbl.DenyMethods = denied
 		}
+		if ftsLanguage != "" {
+			tbl.FTSLanguage = ftsLanguage
+		}
 	}
 }
 
-func parseComment(comment string) (allowed, denied []string) {
+func parseComment(comment string) (allowed, denied []string, ftsLanguage string) {
 	for _, line := range strings.Split(comment, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "@allow ") {
@@ -330,6 +333,8 @@ func parseComment(comment string) (allowed, denied []string) {
 					denied = append(denied, strings.ToUpper(p))
 				}
 			}
+		} else if strings.HasPrefix(line, "@fts_language ") {
+			ftsLanguage = strings.TrimSpace(strings.TrimPrefix(line, "@fts_language "))
 		}
 	}
 	return

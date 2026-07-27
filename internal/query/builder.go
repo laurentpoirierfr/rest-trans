@@ -61,6 +61,19 @@ func (b *Builder) BuildSelect() (string, []interface{}, error) {
 		query += b.qualifiedTable() + ".*"
 	}
 
+	if len(b.Params.FtsFilters) > 0 {
+		for _, fts := range b.Params.FtsFilters {
+			rankExpr := fmt.Sprintf("ts_rank(%s, plainto_tsquery('%s', $%d)) AS _rank", fts.Column, b.ftsLanguage(), argIdx)
+			args = append(args, fts.SearchTerm)
+			argIdx++
+			if len(b.Params.Select) > 0 || len(b.Params.Embeds) > 0 || len(b.Params.Aggregates) > 0 {
+				query = strings.Replace(query, "SELECT ", "SELECT "+rankExpr+", ", 1)
+			} else {
+				query = "SELECT " + rankExpr + ", " + query[len("SELECT "):]
+			}
+		}
+	}
+
 	query += fmt.Sprintf(" FROM %s", b.qualifiedTable())
 
 	joins, joinArgs, err := b.buildEmbedJoins(&argIdx)
@@ -369,6 +382,15 @@ func (b *Builder) buildWhere(argIdx *int) (string, []interface{}, error) {
 		args = append(args, conditionArgs...)
 	}
 
+	for _, fts := range b.Params.FtsFilters {
+		condition, conditionArgs, err := b.buildFtsCondition(fts, argIdx)
+		if err != nil {
+			return "", nil, err
+		}
+		conditions = append(conditions, condition)
+		args = append(args, conditionArgs...)
+	}
+
 	if len(conditions) == 0 {
 		return "", nil, nil
 	}
@@ -472,13 +494,39 @@ func (b *Builder) buildLogicalCondition(lf LogicalFilter, argIdx *int) (string, 
 func (b *Builder) buildOrderBy() string {
 	var parts []string
 	for _, item := range b.Params.Order {
-		part := fmt.Sprintf("%s %s", item.Column, strings.ToUpper(string(item.Direction)))
+		col := item.Column
+		if col == "_rank" && len(b.Params.FtsFilters) > 0 {
+			col = fmt.Sprintf("ts_rank(%s, plainto_tsquery('%s', $1))", b.Params.FtsFilters[0].Column, b.ftsLanguage())
+		}
+		part := fmt.Sprintf("%s %s", col, strings.ToUpper(string(item.Direction)))
 		if item.Nulls != "" {
 			part += " " + strings.ToUpper(item.Nulls)
 		}
 		parts = append(parts, part)
 	}
 	return strings.Join(parts, ", ")
+}
+
+func (b *Builder) buildFtsCondition(fts FtsFilter, argIdx *int) (string, []interface{}, error) {
+	lang := b.Table.FTSLanguage
+	if lang == "" {
+		lang = "english"
+	}
+	cond := fmt.Sprintf("%s @@ plainto_tsquery('%s', $%d)", fts.Column, lang, *argIdx)
+	args := []interface{}{fts.SearchTerm}
+	*argIdx++
+
+	if fts.Negate {
+		cond = "NOT (" + cond + ")"
+	}
+	return cond, args, nil
+}
+
+func (b *Builder) ftsLanguage() string {
+	if b.Table.FTSLanguage != "" {
+		return b.Table.FTSLanguage
+	}
+	return "english"
 }
 
 func (b *Builder) buildAggregateSelect(agg Aggregate) string {

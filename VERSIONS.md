@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.6.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **Full-text search** — Filtre `_fts=col.search_term` avec PostgreSQL tsvector/tsquery
+  - Syntaxe : `_fts=body.search+term` (espace = AND, `plainto_tsquery`)
+  - Ranking automatique : colonne `_rank` via `ts_rank()` ajoutée au SELECT
+  - Tri par pertinence : `_order=_rank.desc`
+  - Négation : `_fts=not.body.deleted` génère `NOT (col @@ plainto_tsquery(...))`
+  - Langue configurable par table via commentaire PG : `@fts_language french`
+  - Langue par défaut : `english`
+  - Validation : erreur 400 si colonne inexistante ou format invalide
+
+### Améliorations
+
+- **AutomaticEnv Viper** — Les variables d'environnement avec préfixe `REST_` sont automatiquement liées aux config keys (`REST_DATABASE_HOST` → `database.host`)
+- **Documentation README** — Variables d'environnement documentées avec les deux formats (legacy + Viper)
+
+### Tests
+
+- `tests/fts_test.go` : 6 tests (basic, multi-word, ranking, colonne invalide, format invalide, aucun résultat)
+- Table `articles` avec tsvector + index GIN ajoutée au schéma de test
+
+### Fichiers modifiés
+
+- `internal/schema/schema.go` : champ `FTSLanguage` sur `Table`
+- `internal/schema/introspect.go` : parser `@fts_language` dans les commentaires PG
+- `internal/query/params.go` : type `FtsFilter`, parsing `_fts` dans `Parse()`
+- `internal/query/builder.go` : `buildFtsCondition()`, `_rank` dans SELECT, tri `_rank` dans ORDER BY
+- `internal/config/config.go` : `AutomaticEnv()` ajouté
+- `infras/init-db/schema.sql` : table `articles` avec tsvector
+
+---
+
 ## v0.5.0
 
 **Date :** 27 juillet 2026

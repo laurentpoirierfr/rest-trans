@@ -207,12 +207,13 @@ Les paramètres système sont préfixés avec `_` pour éviter les conflits avec
 | Paramètre | Description | Exemple |
 |-----------|-------------|---------|
 | `_select` | Colonnes à retourner | `_select=id,name,email` |
-| `_order` | Tri | `_order=name.asc,created_at.desc` |
+| `_order` | Tri (supporte `_rank` pour FTS) | `_order=name.asc,_rank.desc` |
 | `_limit` | Nombre max de résultats | `_limit=20` |
 | `_offset` | Décalage pour pagination | `_offset=40` |
 | `_count` | Compteur | `_count=exact` |
 | `_or` | Filtre logique OR | `_or=(age.lt.18,age.gt.65)` |
 | `_and` | Filtre logique AND | `_and=(active.is.true,verified.is.true)` |
+| `_fts` | Full-text search | `_fts=body.search+term` |
 | `on_conflict` | Colonnes pour ON CONFLICT (POST) | `on_conflict=email,name` |
 
 **Filtres colonnes** (sans préfixe) :
@@ -232,6 +233,28 @@ Les paramètres système sont préfixés avec `_` pour éviter les conflits avec
 | `cs` | Contient (@>) | `tags=cs.{admin,active}` |
 | `cd` | Est contenu (<@) | `tags=cd.{admin}` |
 | `ov` | Chevauchement (&&) | `tags=ov.{admin,user}` |
+
+### Full-text Search
+
+Recherche plein texte via PostgreSQL `tsvector`/`tsquery` :
+
+```bash
+# Recherche simple
+curl "http://localhost:3000/public/articles?_fts=body.hello+world"
+
+# Tri par pertinence
+curl "http://localhost:3000/public/articles?_fts=body.search&_order=_rank.desc"
+
+# Exclusion
+curl "http://localhost:3000/public/articles?_fts=not.body.deleted"
+```
+
+**Configuration par table** via commentaire PostgreSQL :
+```sql
+COMMENT ON TABLE articles IS '@fts_language french';
+```
+
+Langue par défaut : `english`. Le paramètre `_fts` génère automatiquement une colonne `_rank` (via `ts_rank`) pour le scoring de pertinence.
 
 ### Transactions
 
