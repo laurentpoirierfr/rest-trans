@@ -151,7 +151,7 @@ func SetupSuite() *TestSuite {
 	txCtx, txCancel := context.WithCancel(context.Background())
 	txManager.StartCleanup(txCtx, cfg.Transactions.CleanupInterval)
 
-	router := api.NewRouter(db, store, schemas, cfg, txManager, nil)
+	router := api.NewRouter(db, store, schemas, cfg, txManager, nil, nil)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

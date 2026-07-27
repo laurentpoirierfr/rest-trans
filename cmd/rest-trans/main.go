@@ -14,6 +14,7 @@ import (
 	"github.com/laurentpoirierfr/rest-trans/internal/api"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
 	"github.com/laurentpoirierfr/rest-trans/internal/notification"
+	"github.com/laurentpoirierfr/rest-trans/internal/ratelimit"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 
@@ -149,7 +150,16 @@ func main() {
 	listener.Start(ctx)
 	slog.Info("notification listener started")
 
-	router := api.NewRouter(db, store, schemas, cfg, txManager, hub)
+	rlManager := ratelimit.NewManager(cfg.RateLimit)
+	if cfg.RateLimit.Enabled {
+		slog.Info("rate limiting enabled",
+			"rps", cfg.RateLimit.RPS,
+			"burst", cfg.RateLimit.Burst,
+			"per_table_rules", len(cfg.RateLimit.PerTable),
+		)
+	}
+
+	router := api.NewRouter(db, store, schemas, cfg, txManager, hub, rlManager)
 
 	addr := cfg.ServerAddr()
 	srv := &http.Server{
@@ -184,6 +194,8 @@ func main() {
 	if listener != nil {
 		listener.Stop()
 	}
+
+	rlManager.Stop()
 
 	if txManager != nil {
 		txManager.StopCleanup()

@@ -13,12 +13,13 @@ import (
 	"github.com/laurentpoirierfr/rest-trans/internal/metrics"
 	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/openapi"
+	"github.com/laurentpoirierfr/rest-trans/internal/ratelimit"
 	"github.com/laurentpoirierfr/rest-trans/internal/rpc"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 )
 
-func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub) *gin.Engine {
+func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub, rlManager *ratelimit.LimiterManager) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
@@ -26,6 +27,9 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	r.Use(loggingMiddleware())
 	r.Use(metrics.Middleware())
 	r.Use(corsMiddleware(store, cfg))
+	if rlManager != nil {
+		r.Use(rlManager.Middleware())
+	}
 	r.Use(methodGuard(store, cfg))
 	if txManager != nil {
 		r.Use(transaction.Middleware(txManager))

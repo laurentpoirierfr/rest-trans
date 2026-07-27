@@ -17,6 +17,7 @@ type Config struct {
 	Permissions  map[string]PermConfig   `mapstructure:"permissions"`
 	RPC          map[string]RPCConfig    `mapstructure:"rpc"`
 	Transactions TransactionsConfig     `mapstructure:"transactions"`
+	RateLimit    RateLimitConfig         `mapstructure:"rate_limit"`
 	HiddenTables []string                `mapstructure:"hidden_tables"`
 }
 
@@ -29,6 +30,18 @@ type TransactionsConfig struct {
 	Enabled         bool          `mapstructure:"enabled"`
 	TTL             time.Duration `mapstructure:"ttl"`
 	CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
+}
+
+type RateLimitTableConfig struct {
+	RPS   float64 `mapstructure:"requests_per_second"`
+	Burst int     `mapstructure:"burst"`
+}
+
+type RateLimitConfig struct {
+	Enabled  bool                             `mapstructure:"enabled"`
+	RPS      float64                          `mapstructure:"requests_per_second"`
+	Burst    int                              `mapstructure:"burst"`
+	PerTable map[string]RateLimitTableConfig  `mapstructure:"per_table"`
 }
 
 type ServerConfig struct {
@@ -93,6 +106,9 @@ func Load() *Config {
 	v.SetDefault("transactions.cleanup_interval", "60s")
 	v.SetDefault("hot_reload.enabled", false)
 	v.SetDefault("hot_reload.interval", "30s")
+	v.SetDefault("rate_limit.enabled", false)
+	v.SetDefault("rate_limit.requests_per_second", 10)
+	v.SetDefault("rate_limit.burst", 20)
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
