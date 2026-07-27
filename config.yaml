@@ -36,6 +36,10 @@ transactions:
   ttl: 30m
   cleanup_interval: 60s
 
+hot_reload:
+  enabled: false
+  interval: 30s
+
 # Tables cachées de l'OpenAPI et /info (supporte les wildcards : rest_*)
 hidden_tables:
   - rest_*

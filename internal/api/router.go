@@ -11,13 +11,14 @@ import (
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
 	"github.com/laurentpoirierfr/rest-trans/internal/docs"
 	"github.com/laurentpoirierfr/rest-trans/internal/metrics"
+	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/openapi"
 	"github.com/laurentpoirierfr/rest-trans/internal/rpc"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 )
 
-func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager) *gin.Engine {
+func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
@@ -66,6 +67,10 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	docs.RegisterRoutes(r)
 
 	r.POST("/:schema/rpc/:function", rpcH.HandleRPC)
+
+	if hub != nil {
+		r.GET("/:schema/:table/_stream", HandleSSE(hub))
+	}
 
 	r.GET("/:schema/:table", h.HandleGet)
 	r.HEAD("/:schema/:table", h.HandleHead)

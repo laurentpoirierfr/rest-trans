@@ -13,10 +13,16 @@ import (
 type Config struct {
 	Server       ServerConfig            `mapstructure:"server"`
 	Database     DatabaseConfig          `mapstructure:"database"`
+	HotReload    HotReloadConfig         `mapstructure:"hot_reload"`
 	Permissions  map[string]PermConfig   `mapstructure:"permissions"`
 	RPC          map[string]RPCConfig    `mapstructure:"rpc"`
-	Transactions TransactionsConfig      `mapstructure:"transactions"`
+	Transactions TransactionsConfig     `mapstructure:"transactions"`
 	HiddenTables []string                `mapstructure:"hidden_tables"`
+}
+
+type HotReloadConfig struct {
+	Enabled  bool          `mapstructure:"enabled"`
+	Interval time.Duration `mapstructure:"interval"`
 }
 
 type TransactionsConfig struct {
@@ -85,6 +91,8 @@ func Load() *Config {
 	v.SetDefault("transactions.enabled", true)
 	v.SetDefault("transactions.ttl", "30m")
 	v.SetDefault("transactions.cleanup_interval", "60s")
+	v.SetDefault("hot_reload.enabled", false)
+	v.SetDefault("hot_reload.interval", "30s")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")

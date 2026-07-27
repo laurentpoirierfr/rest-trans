@@ -1,6 +1,9 @@
 package schema
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
 type Column struct {
 	Name            string `json:"name"`
@@ -75,6 +78,7 @@ func (t *Table) IsMethodAllowed(method string) bool {
 }
 
 type SchemaStore struct {
+	mu            sync.RWMutex
 	schemas       map[string]map[string]*Table
 	functions     map[string]map[string]*Function
 	defaultSchema string
@@ -89,6 +93,8 @@ func NewSchemaStore(defSchema string) *SchemaStore {
 }
 
 func (ss *SchemaStore) AddTable(schemaName string, table *Table) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
 	table.SchemaName = schemaName
 	if _, ok := ss.schemas[schemaName]; !ok {
 		ss.schemas[schemaName] = make(map[string]*Table)
@@ -100,6 +106,8 @@ func (ss *SchemaStore) GetTable(schemaName, tableName string) (*Table, bool) {
 	if schemaName == "" {
 		schemaName = ss.defaultSchema
 	}
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	schema, ok := ss.schemas[schemaName]
 	if !ok {
 		return nil, false
@@ -109,6 +117,8 @@ func (ss *SchemaStore) GetTable(schemaName, tableName string) (*Table, bool) {
 }
 
 func (ss *SchemaStore) AllTables() map[string]*Table {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	result := make(map[string]*Table)
 	for _, tables := range ss.schemas {
 		for name, table := range tables {
@@ -122,6 +132,8 @@ func (ss *SchemaStore) TablesBySchema(schemaName string) map[string]*Table {
 	if schemaName == "" {
 		schemaName = ss.defaultSchema
 	}
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	return ss.schemas[schemaName]
 }
 
@@ -130,6 +142,8 @@ func (ss *SchemaStore) DefaultSchema() string {
 }
 
 func (ss *SchemaStore) SchemaNames() []string {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	names := make([]string, 0, len(ss.schemas))
 	for name := range ss.schemas {
 		names = append(names, name)
@@ -143,6 +157,8 @@ func (ss *SchemaStore) HasTable(schemaName, tableName string) bool {
 }
 
 func (ss *SchemaStore) AddFunction(schemaName string, fn *Function) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
 	if _, ok := ss.functions[schemaName]; !ok {
 		ss.functions[schemaName] = make(map[string]*Function)
 	}
@@ -153,6 +169,8 @@ func (ss *SchemaStore) GetFunction(schemaName, funcName string) (*Function, bool
 	if schemaName == "" {
 		schemaName = ss.defaultSchema
 	}
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	schema, ok := ss.functions[schemaName]
 	if !ok {
 		return nil, false
@@ -162,6 +180,8 @@ func (ss *SchemaStore) GetFunction(schemaName, funcName string) (*Function, bool
 }
 
 func (ss *SchemaStore) AllFunctions() map[string]*Function {
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	result := make(map[string]*Function)
 	for _, fns := range ss.functions {
 		for name, fn := range fns {
@@ -175,5 +195,19 @@ func (ss *SchemaStore) FunctionsBySchema(schemaName string) map[string]*Function
 	if schemaName == "" {
 		schemaName = ss.defaultSchema
 	}
+	ss.mu.RLock()
+	defer ss.mu.RUnlock()
 	return ss.functions[schemaName]
+}
+
+func (ss *SchemaStore) ReplaceTables(schemas map[string]map[string]*Table) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.schemas = schemas
+}
+
+func (ss *SchemaStore) ReplaceFunctions(functions map[string]map[string]*Function) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	ss.functions = functions
 }

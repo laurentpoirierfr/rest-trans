@@ -13,6 +13,7 @@ import (
 
 	"github.com/laurentpoirierfr/rest-trans/internal/api"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
+	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 
@@ -125,7 +126,30 @@ func main() {
 		)
 	}
 
-	router := api.NewRouter(db, store, schemas, cfg, txManager)
+	hub := notification.NewHub()
+
+	var listener *notification.Listener
+	if cfg.HotReload.Enabled {
+		w := schema.NewWatcher(db, store, schemas, cfg.HotReload.Interval)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		w.Start(ctx)
+		slog.Info("hot reload enabled", "interval", cfg.HotReload.Interval)
+	}
+
+	tablesBySchema := make(map[string][]string)
+	for _, s := range schemas {
+		for name := range store.TablesBySchema(s) {
+			tablesBySchema[s] = append(tablesBySchema[s], name)
+		}
+	}
+	listener = notification.NewListener(cfg.DSN(), hub, schemas, tablesBySchema)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	listener.Start(ctx)
+	slog.Info("notification listener started")
+
+	router := api.NewRouter(db, store, schemas, cfg, txManager, hub)
 
 	addr := cfg.ServerAddr()
 	srv := &http.Server{
@@ -150,11 +174,15 @@ func main() {
 	<-quit
 	slog.Info("shutting down")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutCtx); err != nil {
 		slog.Error("server shutdown error", "error", err)
+	}
+
+	if listener != nil {
+		listener.Stop()
 	}
 
 	if txManager != nil {
