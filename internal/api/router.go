@@ -180,7 +180,7 @@ func corsMiddleware(store *schema.SchemaStore, cfg *config.Config) gin.HandlerFu
 		c.Header("Access-Control-Allow-Methods", strings.Join(allowed, ", "))
 
 		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusNoContent)
+			c.Next()
 			return
 		}
 
