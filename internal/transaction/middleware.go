@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -88,6 +90,8 @@ func Middleware(manager *Manager) gin.HandlerFunc {
 		var op string
 		var sqlQuery string
 		var params []interface{}
+		var beforeState []byte
+		var rowIDs []byte
 
 		switch method {
 		case http.MethodPost:
@@ -96,7 +100,7 @@ func Middleware(manager *Manager) gin.HandlerFunc {
 				columns, placeholders, vals := extractInsertParts(item)
 				sqlQuery = BuildInsertQuery(qualifiedTable, columns, placeholders)
 				params = vals
-				if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params); err != nil {
+				if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params, nil, nil); err != nil {
 					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 						"code":    "PGRST314",
 						"message": fmt.Sprintf("Failed to stage operation: %v", err),
@@ -109,9 +113,28 @@ func Middleware(manager *Manager) gin.HandlerFunc {
 			op = "UPDATE"
 			if len(items) > 0 {
 				setClauses, placeholders, vals := extractUpdateParts(items[0])
+
+				idParam := extractIDParam(c.Request.URL.RawQuery)
+				if idParam != "" {
+					vals = append(vals, idParam)
+				}
+
 				sqlQuery = BuildUpdateQuery(qualifiedTable, setClauses, placeholders)
 				params = vals
-				if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params); err != nil {
+
+				whereClause, whereArgs := extractWhereClause(c.Request.URL.RawQuery)
+				if whereClause != "" {
+					beforeState, rowIDs, err = manager.CaptureSnapshot(schemaName, tableName, whereClause, whereArgs)
+					if err != nil {
+						c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+							"code":    "PGRST317",
+							"message": fmt.Sprintf("Failed to capture snapshot: %v", err),
+						})
+						return
+					}
+				}
+
+				if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params, beforeState, rowIDs); err != nil {
 					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 						"code":    "PGRST315",
 						"message": fmt.Sprintf("Failed to stage operation: %v", err),
@@ -123,10 +146,18 @@ func Middleware(manager *Manager) gin.HandlerFunc {
 		case http.MethodDelete:
 			op = "DELETE"
 			sqlQuery = BuildDeleteQuery(qualifiedTable)
-			if pkVal := c.Query("id"); pkVal != "" {
-				params = []interface{}{pkVal}
+			if idVal := extractIDParam(c.Request.URL.RawQuery); idVal != "" {
+				params = []interface{}{idVal}
+				beforeState, rowIDs, err = manager.CaptureSnapshot(schemaName, tableName, "id = $1", params)
+				if err != nil {
+					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+						"code":    "PGRST318",
+						"message": fmt.Sprintf("Failed to capture snapshot: %v", err),
+					})
+					return
+				}
 			}
-			if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params); err != nil {
+			if err := manager.Stage(txID, op, qualifiedTable, sqlQuery, params, beforeState, rowIDs); err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 					"code":    "PGRST316",
 					"message": fmt.Sprintf("Failed to stage operation: %v", err),
@@ -141,6 +172,58 @@ func Middleware(manager *Manager) gin.HandlerFunc {
 		})
 		c.Abort()
 	}
+}
+
+func extractWhereClause(rawQuery string) (string, []interface{}) {
+	if rawQuery == "" {
+		return "", nil
+	}
+
+	parsed, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return "", nil
+	}
+
+	var conditions []string
+	var args []interface{}
+	argIdx := 1
+
+	for key, values := range parsed {
+		if strings.HasPrefix(key, "_") {
+			continue
+		}
+		for _, val := range values {
+			parts := strings.SplitN(val, ".", 2)
+			if len(parts) == 2 {
+				conditions = append(conditions, fmt.Sprintf("%s = $%d", key, argIdx))
+				args = append(args, parts[1])
+				argIdx++
+			}
+		}
+	}
+
+	return strings.Join(conditions, " AND "), args
+}
+
+func extractIDParam(rawQuery string) string {
+	if rawQuery == "" {
+		return ""
+	}
+
+	parsed, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return ""
+	}
+
+	if idVal := parsed.Get("id"); idVal != "" {
+		parts := strings.SplitN(idVal, ".", 2)
+		if len(parts) == 2 {
+			return parts[1]
+		}
+		return idVal
+	}
+
+	return ""
 }
 
 func extractInsertParts(item map[string]interface{}) (columns, placeholders []string, vals []interface{}) {

@@ -9,7 +9,8 @@
 ## Moyenne valeur
 
 - [x] **Bulk upsert** — Upsert batch avec ON CONFLICT sur n'importe quelles colonnes (pas juste PK)
-- [ ] **Full-text search** — Filtre `_fts=col.search_term` avec tsvector/tsquery
+- [x] **Full-text search** — Filtre `_fts=col.search_term` avec tsvector/tsquery
+- [x] **Post-commit Rollback** — Rollback après commit via snapshots (before_state)
 - [x] **View support amélioré** — Les vues sont déjà introspectées mais les mutations devraient être bloquées proprement (au lieu du 400 actuel)
 - [x] **Metrics/Prometheus** — `/ops/metrics` avec compteurs de requêtes, latence, erreurs
 - [x] **Rate limiting** — Configurable par table/IP

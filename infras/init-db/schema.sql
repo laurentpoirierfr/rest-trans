@@ -97,6 +97,9 @@ CREATE TABLE rest_transaction_operations (
     table_name TEXT NOT NULL,
     sql_query TEXT NOT NULL,
     params JSONB,
+    before_state JSONB,
+    committed_state JSONB,
+    row_ids JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
@@ -111,4 +114,4 @@ SELECT id, name, email, created_at
 FROM users
 WHERE email NOT LIKE '%deleted%';
 
-COMMENT ON TABLE active_users IS 'Vue des utilisateurs actifs (read-only)';
+COMMENT ON VIEW active_users IS 'Vue des utilisateurs actifs (read-only)';
