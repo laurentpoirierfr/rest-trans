@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.5.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **View support amélioré** — Les vues sont maintenant correctement gérées en read-only
+  - `methodGuard` : les mutations (POST, PUT, PATCH, DELETE) retournent 405 avec code `PGRST201`
+  - `corsMiddleware` : exclut les méthodes mutation des `Access-Control-Allow-Methods` pour les vues
+  - `HandleOptions` : header `Allow` dynamique (GET, HEAD, OPTIONS pour les vues)
+  - OpenAPI spec : omet POST/PUT/PATCH/DELETE pour les vues
+  - Ajout d'une vue `active_users` dans le schema de test
+
+### Tests
+
+- `tests/view_test.go` : 9 tests pour valider le comportement des vues
+  - `TestViewAllowsGET`, `TestViewAllowsHEAD`
+  - `TestViewRejectsPOST`, `TestViewRejectsPUT`, `TestViewRejectsPATCH`, `TestViewRejectsDELETE`
+  - `TestViewOptionsHeader`, `TestViewOptionsBody`
+  - `TestOpenAPIOmitsMutationsForViews`
+
+---
+
 ## v0.4.0
 
 **Date :** 27 juillet 2026

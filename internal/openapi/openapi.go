@@ -103,17 +103,19 @@ func Generate(store *schema.SchemaStore, cfg *config.Config) *Spec {
 			if table.IsMethodAllowed("HEAD") && cfg.IsMethodAllowed(tableName, "HEAD") {
 				item["head"] = buildHEADOp(table, sName)
 			}
-			if table.IsMethodAllowed("POST") && cfg.IsMethodAllowed(tableName, "POST") {
-				item["post"] = buildPOSTOp(table, sName)
-			}
-			if table.IsMethodAllowed("PUT") && cfg.IsMethodAllowed(tableName, "PUT") {
-				item["put"] = buildPUTOp(table, sName)
-			}
-			if table.IsMethodAllowed("PATCH") && cfg.IsMethodAllowed(tableName, "PATCH") {
-				item["patch"] = buildPATCHOp(table, sName)
-			}
-			if table.IsMethodAllowed("DELETE") && cfg.IsMethodAllowed(tableName, "DELETE") {
-				item["delete"] = buildDELETEOp(table, sName)
+			if !table.IsView {
+				if table.IsMethodAllowed("POST") && cfg.IsMethodAllowed(tableName, "POST") {
+					item["post"] = buildPOSTOp(table, sName)
+				}
+				if table.IsMethodAllowed("PUT") && cfg.IsMethodAllowed(tableName, "PUT") {
+					item["put"] = buildPUTOp(table, sName)
+				}
+				if table.IsMethodAllowed("PATCH") && cfg.IsMethodAllowed(tableName, "PATCH") {
+					item["patch"] = buildPATCHOp(table, sName)
+				}
+				if table.IsMethodAllowed("DELETE") && cfg.IsMethodAllowed(tableName, "DELETE") {
+					item["delete"] = buildDELETEOp(table, sName)
+				}
 			}
 			item["options"] = buildOPTIONSOps(table, sName)
 

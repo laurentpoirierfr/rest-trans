@@ -138,6 +138,7 @@ func Load() *Config {
 func bindEnvVars(v *viper.Viper) {
 	v.SetEnvPrefix("REST")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
 }
 
 func bindLegacyEnvVars(v *viper.Viper) {

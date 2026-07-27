@@ -111,6 +111,14 @@ func methodGuard(store *schema.SchemaStore, cfg *config.Config) gin.HandlerFunc 
 		method := c.Request.Method
 
 		if t, ok := store.GetTable(schemaName, tableName); ok {
+			if t.IsView && method != "GET" && method != "HEAD" && method != "OPTIONS" {
+				c.AbortWithStatusJSON(405, gin.H{
+					"code":    "PGRST201",
+					"message": fmt.Sprintf("Method %s is not allowed on view %s.%s: views are read-only", method, schemaName, tableName),
+				})
+				return
+			}
+
 			if !t.IsMethodAllowed(method) {
 				c.AbortWithStatusJSON(405, gin.H{
 					"code":    "PGRST102",
@@ -157,6 +165,9 @@ func corsMiddleware(store *schema.SchemaStore, cfg *config.Config) gin.HandlerFu
 		allowed := []string{"OPTIONS"}
 		for _, method := range []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"} {
 			if t, ok := store.GetTable(schemaName, tableName); ok {
+				if t.IsView && method != "GET" && method != "HEAD" {
+					continue
+				}
 				if t.IsMethodAllowed(method) && cfg.IsMethodAllowed(tableName, method) {
 					allowed = append(allowed, method)
 				}

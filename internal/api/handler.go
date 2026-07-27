@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -143,14 +144,17 @@ func (h *Handler) HandleHead(c *gin.Context) {
 }
 
 func (h *Handler) HandlePost(c *gin.Context) {
-	table, tableName, _, ok := h.resolveTable(c)
+	table, tableName, schemaName, ok := h.resolveTable(c)
 	if !ok {
 		c.JSON(http.StatusNotFound, apierror.ErrTableNotFound(tableName))
 		return
 	}
 
 	if table.IsView {
-		c.JSON(http.StatusBadRequest, apierror.ErrMethodNotAllowed("Cannot insert into a view"))
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"code":    "PGRST201",
+			"message": fmt.Sprintf("Method POST is not allowed on view %s.%s: views are read-only", schemaName, tableName),
+		})
 		return
 	}
 
@@ -293,14 +297,17 @@ func (h *Handler) HandlePost(c *gin.Context) {
 }
 
 func (h *Handler) HandlePatch(c *gin.Context) {
-	table, tableName, _, ok := h.resolveTable(c)
+	table, tableName, schemaName, ok := h.resolveTable(c)
 	if !ok {
 		c.JSON(http.StatusNotFound, apierror.ErrTableNotFound(tableName))
 		return
 	}
 
 	if table.IsView {
-		c.JSON(http.StatusBadRequest, apierror.ErrMethodNotAllowed("Cannot update a view"))
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"code":    "PGRST201",
+			"message": fmt.Sprintf("Method PATCH is not allowed on view %s.%s: views are read-only", schemaName, tableName),
+		})
 		return
 	}
 
@@ -374,14 +381,17 @@ func (h *Handler) HandlePatch(c *gin.Context) {
 }
 
 func (h *Handler) HandlePut(c *gin.Context) {
-	table, tableName, _, ok := h.resolveTable(c)
+	table, tableName, schemaName, ok := h.resolveTable(c)
 	if !ok {
 		c.JSON(http.StatusNotFound, apierror.ErrTableNotFound(tableName))
 		return
 	}
 
 	if table.IsView {
-		c.JSON(http.StatusBadRequest, apierror.ErrMethodNotAllowed("Cannot upsert into a view"))
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"code":    "PGRST201",
+			"message": fmt.Sprintf("Method PUT is not allowed on view %s.%s: views are read-only", schemaName, tableName),
+		})
 		return
 	}
 
@@ -500,14 +510,17 @@ func (h *Handler) HandlePut(c *gin.Context) {
 }
 
 func (h *Handler) HandleDelete(c *gin.Context) {
-	table, tableName, _, ok := h.resolveTable(c)
+	table, tableName, schemaName, ok := h.resolveTable(c)
 	if !ok {
 		c.JSON(http.StatusNotFound, apierror.ErrTableNotFound(tableName))
 		return
 	}
 
 	if table.IsView {
-		c.JSON(http.StatusBadRequest, apierror.ErrMethodNotAllowed("Cannot delete from a view"))
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"code":    "PGRST201",
+			"message": fmt.Sprintf("Method DELETE is not allowed on view %s.%s: views are read-only", schemaName, tableName),
+		})
 		return
 	}
 
@@ -576,7 +589,11 @@ func (h *Handler) HandleOptions(c *gin.Context) {
 	}
 	info["foreign_keys"] = fkList
 
-	c.Header("Allow", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
+	if table.IsView {
+		c.Header("Allow", "GET, HEAD, OPTIONS")
+	} else {
+		c.Header("Allow", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS")
+	}
 	c.JSON(http.StatusOK, info)
 }
 
