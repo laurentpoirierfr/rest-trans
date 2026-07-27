@@ -262,13 +262,13 @@ graph TB
 flowchart TD
     A[POST /public/transactions] --> B[TransactionHandler.Start]
     B --> C[INSERT INTO rest_transactions]
-    C --> D[201 {"tx": "abc123"}]
+    C --> D["201 {&quot;tx&quot;: &quot;abc123&quot;}"]
 
-    E[POST /public/orders\nheader: Authorization-Transaction: abc123] --> F[TransactionMiddleware]
+    E["POST /public/orders<br/>header: Authorization-Transaction: abc123"] --> F[TransactionMiddleware]
     F --> G{txID valide et pending?}
     G -->|Non| H[409 Conflict]
     G -->|Oui| I[INSERT INTO rest_transaction_operations]
-    I --> J[202 {"status": "pending", "tx": "abc123"}]
+    I --> J["202 {&quot;status&quot;: &quot;pending&quot;, &quot;tx&quot;: &quot;abc123&quot;}"]
 
     K[POST /public/transactions/abc123/commit] --> L[TransactionHandler.Commit]
     L --> M[BEGIN sur base principale]
@@ -279,7 +279,7 @@ flowchart TD
     Q --> R[UPDATE status = committed]
     R --> S[DELETE opérations]
     S --> T[COMMIT sur base principale]
-    T --> U[200 {"status": "committed"}]
+    T --> U["200 {&quot;status&quot;: &quot;committed&quot;}"]
 ```
 
 ### Tables de base de données
