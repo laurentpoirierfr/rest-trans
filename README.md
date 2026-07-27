@@ -133,24 +133,56 @@ transactions:
 
 ### Variables d'environnement
 
-Les variables d'environnement surchargent le fichier de config. Deux formats supportés :
+Les variables d'environnement surchargent le fichier de config. Elles sont lues avant `ReadInConfig()`, donc toute valeur définie en env prend le dessus.
 
-```bash
-# Format legacy (rétrocompatible)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASS=postgres
-DB_NAME=app
-DB_SCHEMAS=public
-PORT=3000
-HOST=0.0.0.0
+Deux modes de liaison coexistent :
 
-# Format REST (Viper)
-REST_DB_HOST=localhost
-REST_DB_PORT=5432
-REST_SERVER_PORT=3000
-```
+#### 1. Format Viper (`AutomaticEnv`)
+
+Préfixe `REST_` + clé config avec `_` au lieu de `.`. Ex: `database.host` → `REST_DATABASE_HOST`.
+
+| Variable | Mapping |
+|----------|---------|
+| `REST_SERVER_HOST` | `server.host` |
+| `REST_SERVER_PORT` | `server.port` |
+| `REST_DATABASE_HOST` | `database.host` |
+| `REST_DATABASE_PORT` | `database.port` |
+| `REST_DATABASE_USER` | `database.user` |
+| `REST_DATABASE_PASSWORD` | `database.password` |
+| `REST_DATABASE_NAME` | `database.name` |
+| `REST_DATABASE_SSLMODE` | `database.sslmode` |
+| `REST_TRANSACTIONS_ENABLED` | `transactions.enabled` |
+| `REST_HOT_RELOAD_ENABLED` | `hot_reload.enabled` |
+| `REST_RATE_LIMIT_ENABLED` | `rate_limit.enabled` |
+
+> Tout config key peut être surchargée via `REST_<KEY_AVEC_UNDERSCORES>`. Ex: `REST_DATABASE_POOL_MAX_OPEN` → `database.pool.max_open`.
+
+#### 2. Format legacy (compatibilité)
+
+Mapping explicite pour des noms courts, toujours actif :
+
+| Variable | Mapping |
+|----------|---------|
+| `HOST` | `server.host` |
+| `PORT` | `server.port` |
+| `DB_HOST` | `database.host` |
+| `DB_PORT` | `database.port` |
+| `DB_USER` | `database.user` |
+| `DB_PASS` ou `DB_PASSWORD` | `database.password` |
+| `DB_NAME` | `database.name` |
+| `DB_SCHEMAS` | `database.schemas` |
+| `DB_SSLMODE` | `database.sslmode` |
+| `REST_HOST` | `server.host` |
+| `REST_PORT` | `server.port` |
+| `REST_DB_HOST` | `database.host` |
+| `REST_DB_PORT` | `database.port` |
+| `REST_DB_USER` | `database.user` |
+| `REST_DB_PASS` ou `REST_DB_PASSWORD` | `database.password` |
+| `REST_DB_NAME` | `database.name` |
+| `REST_DB_SCHEMAS` | `database.schemas` |
+| `REST_DB_SSLMODE` | `database.sslmode` |
+
+> **Priorité** : legacy > AutomaticEnv > config file > defaults.
 
 ## API
 
@@ -249,7 +281,7 @@ curl -X POST http://localhost:3000/public/rpc/get_user_profile \
 ```mermaid
 flowchart TD
     A[Requête HTTP] --> B{Commentaire PG?}
-    B -->|@allow, @deny| C[Appliquer restriction PG]
+    B -->|allow, deny| C[Appliquer restriction PG]
     B -->|Pas de commentaire| D{config.yaml?}
     D -->|permissions.table.methods| E[Appliquer restriction config]
     D -->|Pas de config| F[Tous les verbs autorisés]

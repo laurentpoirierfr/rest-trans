@@ -102,3 +102,13 @@ CREATE TABLE rest_transaction_operations (
 
 CREATE INDEX idx_rest_tx_ops_txid ON rest_transaction_operations(transaction_id);
 CREATE INDEX idx_rest_tx_status ON rest_transactions(status);
+
+-- ==========================================
+-- VUES (pour tests de read-only)
+-- ==========================================
+CREATE VIEW active_users AS
+SELECT id, name, email, created_at
+FROM users
+WHERE email NOT LIKE '%deleted%';
+
+COMMENT ON TABLE active_users IS 'Vue des utilisateurs actifs (read-only)';

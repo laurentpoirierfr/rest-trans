@@ -10,7 +10,7 @@
 
 - [x] **Bulk upsert** — Upsert batch avec ON CONFLICT sur n'importe quelles colonnes (pas juste PK)
 - [ ] **Full-text search** — Filtre `_fts=col.search_term` avec tsvector/tsquery
-- [ ] **View support amélioré** — Les vues sont déjà introspectées mais les mutations devraient être bloquées proprement (au lieu du 400 actuel)
+- [x] **View support amélioré** — Les vues sont déjà introspectées mais les mutations devraient être bloquées proprement (au lieu du 400 actuel)
 - [x] **Metrics/Prometheus** — `/ops/metrics` avec compteurs de requêtes, latence, erreurs
 - [x] **Rate limiting** — Configurable par table/IP
 - [x] **SSE** — `GET /:schema/:table/_stream` pour du real-time (LISTEN/NOTIFY)
