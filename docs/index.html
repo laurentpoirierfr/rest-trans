@@ -375,6 +375,7 @@
                     avec transactions distribuées, full-text search, vues SQL et temps réel.
                 </div>
                 <div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem;">
+                    <span class="badge"><strong>v0.8.0</strong></span>
                     <span class="badge"><strong>Zéro framework</strong> · Zéro ORM</span>
                     <span class="badge"><strong>Go 1.25+</strong> · PostgreSQL 16+</span>
                     <span class="badge"><strong>MIT</strong> · open source</span>
@@ -428,6 +429,8 @@
                 <span>⏪ Post-commit rollback</span>
                 <span>👁️ Vues read-only</span>
                 <span>📊 Métriques Prometheus</span>
+                <span>☸️ Kubernetes / Helm</span>
+                <span>🔄 Auto-migration</span>
             </div>
         </div>
 
@@ -446,6 +449,9 @@
             <div class="card"><div class="icon">🛡️</div><h3>Sécurité intégrée</h3><p>Permissions via commentaires PG ou config, rate limiting, tables cachées.</p></div>
             <div class="card"><div class="icon">📘</div><h3>Documentation auto</h3><p>OpenAPI, Swagger UI (<code>/docs</code>), IHM d'administration <code>/</code>.</p></div>
             <div class="card"><div class="icon">⚙️</div><h3>Observabilité</h3><p>Métriques Prometheus, health checks, logging structuré JSON.</p></div>
+            <div class="card"><div class="icon">☸️</div><h3>Kubernetes & Helm</h3><p>Chart Helm complet. Déploiement en 1 commande. Ingress, scaling, config.</p></div>
+            <div class="card"><div class="icon">🧪</div><h3>Tests Minikube</h3><p>Scripts de test en local. PostgreSQL + app auto-déployés.</p></div>
+            <div class="card"><div class="icon">🔄</div><h3>Auto-migration</h3><p>Tables internes créées automatiquement au démarrage. Zéro config DB.</p></div>
         </div>
 
         <!-- ===== COMPARAISON ===== -->
@@ -465,6 +471,8 @@
                     <tr><td>RPC</td><td><span class="check">✅</span> (stored procedures)</td><td><span class="check">✅</span></td><td><span class="check">✅</span> (actions)</td></tr>
                     <tr><td>Rate limiting</td><td><span class="check">✅</span> intégré</td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
                     <tr><td>Hot reload</td><td><span class="check">✅</span></td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>Kubernetes / Helm</td><td><span class="check">✅</span> (chart complet)</td><td><span class="muted">❌</span></td><td><span class="check">✅</span> (Helm)</td></tr>
+                    <tr><td>Auto-migration</td><td><span class="check">✅</span></td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
                     <tr><td>IHM d'admin</td><td><span class="check">✅</span> (index.html)</td><td><span class="muted">❌</span></td><td><span class="check">✅</span> (console)</td></tr>
                 </tbody>
             </table>
@@ -628,11 +636,23 @@
         </div>
         <div style="background:#0f161f; border-radius:20px; padding:1.8rem; border:1px solid #252f3c; margin:2.5rem 0;">
             <h2 style="font-size:1.3rem; font-weight:500; margin-bottom:0.8rem;">🚀 Démarrage rapide</h2>
-            <pre style="background:#0b0e14; padding:1rem 1.5rem; border-radius:16px; overflow-x:auto; font-size:0.9rem; border:1px solid #1f2833; color:#b0c8e5;"><code>git clone https://github.com/laurentpoirierfr/rest-trans.git
-            cd rest-trans
-            make docker-compose-up
-            curl http://localhost:3000/public/users
-            curl http://localhost:3000/docs</code></pre>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+                <div>
+                    <h3 style="font-size:1rem; color:#7aa9ff; margin-bottom:0.5rem;">Docker Compose</h3>
+                    <pre style="background:#0b0e14; padding:1rem 1.5rem; border-radius:16px; overflow-x:auto; font-size:0.85rem; border:1px solid #1f2833; color:#b0c8e5;"><code>git clone https://github.com/laurentpoirierfr/rest-trans.git
+cd rest-trans
+make docker-compose-up
+curl http://localhost:3000/public/users</code></pre>
+                </div>
+                <div>
+                    <h3 style="font-size:1rem; color:#7aa9ff; margin-bottom:0.5rem;">Kubernetes (Helm)</h3>
+                    <pre style="background:#0b0e14; padding:1rem 1.5rem; border-radius:16px; overflow-x:auto; font-size:0.85rem; border:1px solid #1f2833; color:#b0c8e5;"><code># Minikube (test local)
+make minikube-run
+
+# Ou production
+helm install rest-trans ./k8s/helm/</code></pre>
+                </div>
+            </div>
         </div>
 
         <!-- ===== CTA / FOOTER ===== -->
@@ -649,7 +669,7 @@
         </div>
 
         <div style="text-align:center; margin-top:2.5rem; color:#3a4a5a; font-size:0.85rem; border-top:1px solid #1a2330; padding-top:1.5rem;">
-            rest-trans · un binaire Go + PostgreSQL · zéro framework, zéro ORM
+            rest-trans v0.8.0 · un binaire Go + PostgreSQL · zéro framework, zéro ORM
         </div>
 
     </div>

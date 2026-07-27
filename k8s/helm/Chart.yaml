@@ -2,8 +2,8 @@ apiVersion: v2
 name: rest-trans
 description: A Helm chart for rest-trans API
 type: application
-version: 0.1.0
-appVersion: "1.0.0"
+version: 0.8.0
+appVersion: "0.8.0"
 icon: https://raw.githubusercontent.com/laurentpoirierfr/rest-trans/main/assets/icon.png
 maintainers:
   - name: laurentpoirierfr

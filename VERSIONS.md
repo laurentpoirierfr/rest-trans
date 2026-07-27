@@ -1,5 +1,74 @@
 # Changelog
 
+## v0.8.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **Helm Chart** — Déploiement Kubernetes via Helm
+  - Chart complet avec Deployment, Service, Ingress, ConfigMap, Secret, ServiceAccount
+  - Toutes les variables d'environnement rest-trans paramétrables
+  - Support de l'ingress avec TLS
+  - Configuration du nombre de replicas
+
+- **Scripts Minikube** — Tests de déploiement en local
+  - `start.sh` : Démarrage Minikube + build image Docker
+  - `deploy.sh` : Déploiement PostgreSQL + rest-trans via Helm
+  - `load-data.sh` : Chargement des données de test via API
+  - `test.sh` : Vérification du déploiement
+  - `cleanup.sh` : Nettoyage des ressources
+  - `run.sh` : Script complet (start → deploy → load → test)
+
+- **Auto-migration des tables internes** — Les tables de transactions sont créées automatiquement au démarrage
+  - `rest_transactions` et `rest_transaction_operations` créées via `CREATE TABLE IF NOT EXISTS`
+  - Fonction trigger `rest_notify()` créée automatiquement
+  - Plus besoin de scripts SQL pour les tables internes
+
+- **Données de test JSON** — Fichiers de test dans `tests/data/`
+  - `users.json`, `projects.json`, `tasks.json`, `articles.json`
+  - Chargement via API REST et SQL
+
+### Améliorations
+
+- **Séparation des responsabilités** — Schéma métier vs tables internes
+  - `infras/init-db/` : tables utilisateur (users, projects, tasks, articles, vues, stored procs)
+  - Go code : tables internes (rest_transactions, rest_transaction_operations)
+  - `notify-triggers.sql` supprimé (géré par le code Go)
+
+- **Documentation** — README mis à jour avec section Kubernetes/Helm
+  - Commandes Make pour Minikube
+  - Guide de déploiement
+  - Tableau des variables de configuration
+
+### Fichiers ajoutés
+
+- `k8s/helm/` : Chart Helm complet
+- `k8s/minikube/` : Scripts de test Minikube
+- `k8s/minikube/manifests/postgres.yaml` : PostgreSQL pour Minikube
+- `tests/data/` : Données de test JSON
+- `internal/transaction/migration.go` : Auto-migration des tables internes
+- `assets/icon.png` : Icône du projet
+
+### Fichiers modifiés
+
+- `cmd/rest-trans/main.go` : Gestion d'erreur pour NewManager
+- `tests/testutil/testutil.go` : Gestion d'erreur pour NewManager
+- `Makefile` : Commandes Helm et Minikube
+- `README.md` : Section Kubernetes/Helm
+
+### Fichiers supprimés
+
+- `infras/init-db/notify-triggers.sql` : Géré par le code Go
+- `k8s/minikube/manifests/postgres.yaml` : Tables internes supprimées
+
+### Tests
+
+- Tous les tests existants passent
+- Transaction tests validés avec auto-migration
+
+---
+
 ## v0.7.0
 
 **Date :** 27 juillet 2026
@@ -50,14 +119,11 @@
   - Langue par défaut : `english`
   - Validation : erreur 400 si colonne inexistante ou format invalide
 
-<<<<<<< HEAD
 ### Améliorations
 
 - **AutomaticEnv Viper** — Les variables d'environnement avec préfixe `REST_` sont automatiquement liées aux config keys (`REST_DATABASE_HOST` → `database.host`)
 - **Documentation README** — Variables d'environnement documentées avec les deux formats (legacy + Viper)
 
-=======
->>>>>>> feature/post-commit-rollback
 ### Tests
 
 - `tests/fts_test.go` : 6 tests (basic, multi-word, ranking, colonne invalide, format invalide, aucun résultat)
@@ -68,11 +134,7 @@
 - `internal/schema/schema.go` : champ `FTSLanguage` sur `Table`
 - `internal/schema/introspect.go` : parser `@fts_language` dans les commentaires PG
 - `internal/query/params.go` : type `FtsFilter`, parsing `_fts` dans `Parse()`
-<<<<<<< HEAD
-- `internal/query/builder.go` : `buildFtsCondition()`, `_rank` dans SELECT, tri `_rank` dans ORDER BY
-=======
 - `internal/query/builder.go` : `buildFtsCondition()`, `_rank` dans SELECT + ORDER BY
->>>>>>> feature/post-commit-rollback
 - `internal/config/config.go` : `AutomaticEnv()` ajouté
 - `infras/init-db/schema.sql` : table `articles` avec tsvector
 
