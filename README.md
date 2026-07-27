@@ -49,7 +49,7 @@ graph LR
 - **Rollback** : annulation sans modification
 - **Cleanup automatique** des transactions expirées
 
-> **Documentation détaillée des transactions** : voir [TRANSACTIONS_FR.md](TRANSACTIONS_FR.md)
+> **Documentation détaillée des transactions** : voir [TRANSACTIONS.md](TRANSACTIONS.md)
 
 ## Installation
 
