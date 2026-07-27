@@ -216,6 +216,7 @@ func (h *Handler) HandlePost(c *gin.Context) {
 		}
 	}
 
+	// Build base INSERT
 	var valuePlaceholders []string
 	argIdx = 1
 	for range rowsData {
@@ -230,19 +231,48 @@ func (h *Handler) HandlePost(c *gin.Context) {
 	qualified := table.QualifiedName()
 	sqlQuery := "INSERT INTO " + qualified + " (" + strings.Join(columns, ", ") + ") VALUES " + strings.Join(valuePlaceholders, ", ")
 
-	if hasPrefer(prefer, "resolution=merge-duplicates") && table.PK != "" {
-		sqlQuery += " ON CONFLICT (" + table.PK + ") DO UPDATE SET "
-		setClauses := make([]string, 0, len(columns))
-		for _, col := range columns {
-			if col == table.PK {
-				continue
+	if hasPrefer(prefer, "resolution=merge-duplicates") {
+		// Determine conflict columns: on_conflict param > PK
+		var conflictCols []string
+		if onConflict := c.Query("on_conflict"); onConflict != "" {
+			for _, col := range strings.Split(onConflict, ",") {
+				col = strings.TrimSpace(col)
+				if col == "" {
+					continue
+				}
+				if _, ok := table.Columns[col]; !ok {
+					c.JSON(http.StatusBadRequest, apierror.ErrInvalidColumn(col))
+					return
+				}
+				conflictCols = append(conflictCols, col)
 			}
-			setClauses = append(setClauses, col+" = EXCLUDED."+col)
+		} else if table.PK != "" {
+			conflictCols = []string{table.PK}
 		}
-		if len(setClauses) > 0 {
-			sqlQuery += strings.Join(setClauses, ", ")
-		} else {
-			sqlQuery += "DO NOTHING"
+
+		if len(conflictCols) > 0 {
+			setClauses := make([]string, 0, len(columns))
+			for _, col := range columns {
+				isConflict := false
+				for _, cc := range conflictCols {
+					if col == cc {
+						isConflict = true
+						break
+					}
+				}
+				if !isConflict {
+					setClauses = append(setClauses, col+" = EXCLUDED."+col)
+				}
+			}
+			conflictTarget := make([]string, len(conflictCols))
+			for i, col := range conflictCols {
+				conflictTarget[i] = col
+			}
+			if len(setClauses) > 0 {
+				sqlQuery += " ON CONFLICT (" + strings.Join(conflictTarget, ", ") + ") DO UPDATE SET " + strings.Join(setClauses, ", ")
+			} else {
+				sqlQuery += " ON CONFLICT (" + strings.Join(conflictTarget, ", ") + ") DO NOTHING"
+			}
 		}
 	} else if hasPrefer(prefer, "resolution=ignore-duplicates") {
 		sqlQuery += " ON CONFLICT DO NOTHING"

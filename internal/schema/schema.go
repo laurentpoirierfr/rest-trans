@@ -22,16 +22,22 @@ type ForeignKey struct {
 	OnUpdate       string `json:"on_update"`
 }
 
+type UniqueConstraint struct {
+	ConstraintName string   `json:"constraint_name"`
+	Columns        []string `json:"columns"`
+}
+
 type Table struct {
-	Name           string            `json:"name"`
-	SchemaName     string            `json:"schema_name"`
-	Columns        map[string]Column `json:"columns"`
-	ColumnOrder    []string          `json:"column_order"`
-	PK             string            `json:"pk"`
-	IsView         bool              `json:"is_view"`
-	ForeignKeys    []ForeignKey      `json:"foreign_keys,omitempty"`
-	AllowedMethods []string          `json:"allowed_methods,omitempty"`
-	DenyMethods    []string          `json:"deny_methods,omitempty"`
+	Name              string              `json:"name"`
+	SchemaName        string              `json:"schema_name"`
+	Columns           map[string]Column   `json:"columns"`
+	ColumnOrder       []string            `json:"column_order"`
+	PK                string              `json:"pk"`
+	IsView            bool                `json:"is_view"`
+	ForeignKeys       []ForeignKey        `json:"foreign_keys,omitempty"`
+	UniqueConstraints []UniqueConstraint  `json:"unique_constraints,omitempty"`
+	AllowedMethods    []string            `json:"allowed_methods,omitempty"`
+	DenyMethods       []string            `json:"deny_methods,omitempty"`
 }
 
 func (t *Table) QualifiedName() string {
