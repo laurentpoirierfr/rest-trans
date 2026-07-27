@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
 	"github.com/laurentpoirierfr/rest-trans/internal/docs"
+	"github.com/laurentpoirierfr/rest-trans/internal/ihm"
 	"github.com/laurentpoirierfr/rest-trans/internal/metrics"
 	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/openapi"
@@ -41,6 +42,7 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	r.GET("/ops/liveness", metrics.LivenessHandler())
 	r.GET("/ops/readiness", metrics.ReadinessHandler(db))
 	r.GET("/ops/metrics", metrics.MetricsHandler())
+	r.GET("/ops/streams", metrics.StreamsHandler(store))
 
 	r.GET("/info", func(c *gin.Context) {
 		tables := make(map[string][]string)
@@ -69,6 +71,7 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	})
 
 	docs.RegisterRoutes(r)
+	ihm.RegisterRoutes(r)
 
 	r.POST("/:schema/rpc/:function", rpcH.HandleRPC)
 

@@ -39,6 +39,7 @@ transactions:
 hot_reload:
   enabled: false
   interval: 30s
+  auto_notify_triggers: true
 
 rate_limit:
   enabled: false

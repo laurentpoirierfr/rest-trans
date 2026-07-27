@@ -131,11 +131,14 @@ func main() {
 
 	var listener *notification.Listener
 	if cfg.HotReload.Enabled {
-		w := schema.NewWatcher(db, store, schemas, cfg.HotReload.Interval)
+		w := schema.NewWatcher(db, store, schemas, cfg.HotReload.Interval, cfg.HotReload.AutoNotifyTriggers)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		w.Start(ctx)
-		slog.Info("hot reload enabled", "interval", cfg.HotReload.Interval)
+		slog.Info("hot reload enabled",
+			"interval", cfg.HotReload.Interval,
+			"auto_notify_triggers", cfg.HotReload.AutoNotifyTriggers,
+		)
 	}
 
 	tablesBySchema := make(map[string][]string)

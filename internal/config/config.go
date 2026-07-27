@@ -22,8 +22,9 @@ type Config struct {
 }
 
 type HotReloadConfig struct {
-	Enabled  bool          `mapstructure:"enabled"`
-	Interval time.Duration `mapstructure:"interval"`
+	Enabled            bool          `mapstructure:"enabled"`
+	Interval           time.Duration `mapstructure:"interval"`
+	AutoNotifyTriggers bool          `mapstructure:"auto_notify_triggers"`
 }
 
 type TransactionsConfig struct {
@@ -106,6 +107,7 @@ func Load() *Config {
 	v.SetDefault("transactions.cleanup_interval", "60s")
 	v.SetDefault("hot_reload.enabled", false)
 	v.SetDefault("hot_reload.interval", "30s")
+	v.SetDefault("hot_reload.auto_notify_triggers", true)
 	v.SetDefault("rate_limit.enabled", false)
 	v.SetDefault("rate_limit.requests_per_second", 10)
 	v.SetDefault("rate_limit.burst", 20)
