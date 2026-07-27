@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -56,7 +57,10 @@ func TestHEADUsers(t *testing.T) {
 }
 
 func TestPOSTUser(t *testing.T) {
-	body := `{"name": "Test User", "email": "testpost@example.com"}`
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("post")
+	body := fmt.Sprintf(`{"name": "Test Post User", "email": "%s"}`, email)
 	req, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -70,7 +74,7 @@ func TestPOSTUser(t *testing.T) {
 		t.Errorf("Expected 201, got %d", resp.StatusCode)
 	}
 
-	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq.testpost@example.com")
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email)
 	var users []map[string]interface{}
 	json.NewDecoder(getResp.Body).Decode(&users)
 	getResp.Body.Close()
@@ -78,13 +82,16 @@ func TestPOSTUser(t *testing.T) {
 	if len(users) != 1 {
 		t.Fatalf("Expected 1 user, got %d", len(users))
 	}
-	if users[0]["name"] != "Test User" {
-		t.Errorf("Expected name 'Test User', got %v", users[0]["name"])
+	if users[0]["name"] != "Test Post User" {
+		t.Errorf("Expected name 'Test Post User', got %v", users[0]["name"])
 	}
 }
 
 func TestPOSTUsersBatch(t *testing.T) {
-	body := `[{"name": "Batch User 1", "email": "batch1@example.com"}, {"name": "Batch User 2", "email": "batch2@example.com"}]`
+	suite.SetupTest(t)
+
+	suffix := testutil.UniqueSuffix()
+	body := fmt.Sprintf(`[{"name": "Batch User 1-%s", "email": "batch1-%s@example.com"}, {"name": "Batch User 2-%s", "email": "batch2-%s@example.com"}]`, suffix, suffix, suffix, suffix)
 	req, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -100,7 +107,27 @@ func TestPOSTUsersBatch(t *testing.T) {
 }
 
 func TestPUTUser(t *testing.T) {
-	body := `{"id": 1, "name": "Alice Updated", "email": "alice@example.com"}`
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("put")
+	createBody := fmt.Sprintf(`{"name": "Put Target", "email": "%s"}`, email)
+	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, _ := http.DefaultClient.Do(createReq)
+	createResp.Body.Close()
+
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email + "&_select=id")
+	var users []map[string]interface{}
+	json.NewDecoder(getResp.Body).Decode(&users)
+	getResp.Body.Close()
+
+	if len(users) == 0 {
+		t.Fatal("Failed to create user for PUT test")
+	}
+
+	id := int(users[0]["id"].(float64))
+
+	body := fmt.Sprintf(`{"id": %d, "name": "Put Updated", "email": "%s"}`, id, email)
 	req, _ := http.NewRequest("PUT", suite.ServerURL+"/public/users", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -116,12 +143,15 @@ func TestPUTUser(t *testing.T) {
 }
 
 func TestPATCHUser(t *testing.T) {
-	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(`{"name": "Patch Target", "email": "patch@example.com"}`))
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("patch")
+	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(fmt.Sprintf(`{"name": "Patch Target", "email": "%s"}`, email)))
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp, _ := http.DefaultClient.Do(createReq)
 	createResp.Body.Close()
 
-	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq.patch@example.com&_select=id")
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email + "&_select=id")
 	var users []map[string]interface{}
 	json.NewDecoder(getResp.Body).Decode(&users)
 	getResp.Body.Close()
@@ -157,12 +187,15 @@ func TestPATCHUser(t *testing.T) {
 }
 
 func TestDELETEUser(t *testing.T) {
-	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(`{"name": "To Delete", "email": "delete@example.com"}`))
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("delete")
+	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(fmt.Sprintf(`{"name": "To Delete", "email": "%s"}`, email)))
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp, _ := http.DefaultClient.Do(createReq)
 	createResp.Body.Close()
 
-	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq.delete@example.com&_select=id")
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email + "&_select=id")
 	var users []map[string]interface{}
 	json.NewDecoder(getResp.Body).Decode(&users)
 	getResp.Body.Close()

@@ -14,11 +14,11 @@
 - [x] **Metrics/Prometheus** — `/ops/metrics` avec compteurs de requêtes, latence, erreurs
 - [x] **Rate limiting** — Configurable par table/IP
 - [x] **SSE** — `GET /:schema/:table/_stream` pour du real-time (LISTEN/NOTIFY)
-- [ ] **IHM index.html** — Route `/` servant un `index.html` avec : liens vers `/docs`, état de santé du composant (`/ops/readiness`), console d'affichage des notifications SSE de la base
+- [x] **IHM index.html** — Route `/` servant un `index.html` avec : liens vers `/docs`, état de santé du composant (`/ops/readiness`), console d'affichage des notifications SSE de la base
 
 ## Quick wins
 
-- [ ] **Tests avec données isolées** — Chaque test nettoie ses inserts (utiliser des transactions de test)
+- [x] **Tests avec données isolées** — Chaque test nettoie ses inserts (utiliser des transactions de test)
 - [ ] **CI/CD** — GitHub Actions avec `make test` + Docker build
 - [x] **Logging structuré** — Passer de `log.Printf` à `slog` ou `zerolog`
 - [x] **Graceful shutdown** — Arrêter proprement le serveur et les connexions DB

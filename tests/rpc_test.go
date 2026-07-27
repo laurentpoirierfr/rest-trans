@@ -3,12 +3,35 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/laurentpoirierfr/rest-trans/tests/testutil"
 )
 
 func TestRPCGetUserProfile(t *testing.T) {
-	body := `{"p_user_id": 1}`
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("rpc-profile")
+	createBody := fmt.Sprintf(`{"name": "RPC Profile User", "email": "%s"}`, email)
+	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, _ := http.DefaultClient.Do(createReq)
+	createResp.Body.Close()
+
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email + "&_select=id")
+	var users []map[string]interface{}
+	json.NewDecoder(getResp.Body).Decode(&users)
+	getResp.Body.Close()
+
+	if len(users) == 0 {
+		t.Fatal("Failed to create user for RPC test")
+	}
+
+	userID := int(users[0]["id"].(float64))
+
+	body := fmt.Sprintf(`{"p_user_id": %d}`, userID)
 	resp, err := http.Post(
 		suite.ServerURL+"/public/rpc/get_user_profile",
 		"application/json",
@@ -30,8 +53,8 @@ func TestRPCGetUserProfile(t *testing.T) {
 		t.Errorf("Expected 1 row, got %d", len(result))
 	}
 
-	if result[0]["user_name"] != "Alice Updated" {
-		t.Errorf("Expected user_name 'Alice Updated', got %v", result[0]["user_name"])
+	if result[0]["user_name"] != "RPC Profile User" {
+		t.Errorf("Expected user_name 'RPC Profile User', got %v", result[0]["user_name"])
 	}
 }
 
@@ -87,14 +110,17 @@ func TestRPCGetStats(t *testing.T) {
 }
 
 func TestRPCCreateProjectWithTasks(t *testing.T) {
-	body := `{
-		"p_title": "RPC Test Project",
+	suite.SetupTest(t)
+
+	title := testutil.UniqueName("RPC Project")
+	body := fmt.Sprintf(`{
+		"p_title": "%s",
 		"p_author_id": 1,
 		"p_tasks": [
-			{"title": "Task 1", "task_order": 1},
-			{"title": "Task 2", "task_order": 2}
+			{"title": "%s-Task 1", "task_order": 1},
+			{"title": "%s-Task 2", "task_order": 2}
 		]
-	}`
+	}`, title, title, title)
 	resp, err := http.Post(
 		suite.ServerURL+"/public/rpc/create_project_with_tasks",
 		"application/json",
@@ -122,7 +148,43 @@ func TestRPCCreateProjectWithTasks(t *testing.T) {
 }
 
 func TestRPCBumpTaskPriority(t *testing.T) {
-	body := `{"p_task_id": 1}`
+	suite.SetupTest(t)
+
+	email := testutil.UniqueEmail("rpc-task")
+	createBody := fmt.Sprintf(`{"name": "RPC Task Project", "email": "%s"}`, email)
+	createReq, _ := http.NewRequest("POST", suite.ServerURL+"/public/users", bytes.NewBufferString(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, _ := http.DefaultClient.Do(createReq)
+	createResp.Body.Close()
+
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email + "&_select=id")
+	var users []map[string]interface{}
+	json.NewDecoder(getResp.Body).Decode(&users)
+	getResp.Body.Close()
+
+	if len(users) == 0 {
+		t.Fatal("Failed to create user for RPC task test")
+	}
+
+	userID := int(users[0]["id"].(float64))
+
+	projBody := fmt.Sprintf(`{"p_title": "Task Project", "p_author_id": %d, "p_tasks": [{"title": "Bump Task", "task_order": 1}]}`, userID)
+	projResp, _ := http.Post(
+		suite.ServerURL+"/public/rpc/create_project_with_tasks",
+		"application/json",
+		bytes.NewBufferString(projBody),
+	)
+	var projResult []map[string]interface{}
+	json.NewDecoder(projResp.Body).Decode(&projResult)
+	projResp.Body.Close()
+
+	if len(projResult) == 0 {
+		t.Fatal("Failed to create project for task bump test")
+	}
+
+	taskID := 1
+
+	body := fmt.Sprintf(`{"p_task_id": %d}`, taskID)
 	resp, err := http.Post(
 		suite.ServerURL+"/public/rpc/bump_task_priority",
 		"application/json",
