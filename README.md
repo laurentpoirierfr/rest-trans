@@ -207,12 +207,13 @@ Les paramètres système sont préfixés avec `_` pour éviter les conflits avec
 | Paramètre | Description | Exemple |
 |-----------|-------------|---------|
 | `_select` | Colonnes à retourner | `_select=id,name,email` |
-| `_order` | Tri | `_order=name.asc,created_at.desc` |
+| `_order` | Tri (supporte `_rank` pour FTS) | `_order=name.asc,_rank.desc` |
 | `_limit` | Nombre max de résultats | `_limit=20` |
 | `_offset` | Décalage pour pagination | `_offset=40` |
 | `_count` | Compteur | `_count=exact` |
 | `_or` | Filtre logique OR | `_or=(age.lt.18,age.gt.65)` |
 | `_and` | Filtre logique AND | `_and=(active.is.true,verified.is.true)` |
+| `_fts` | Full-text search | `_fts=body.search+term` |
 | `on_conflict` | Colonnes pour ON CONFLICT (POST) | `on_conflict=email,name` |
 
 **Filtres colonnes** (sans préfixe) :

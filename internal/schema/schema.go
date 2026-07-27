@@ -41,6 +41,7 @@ type Table struct {
 	UniqueConstraints []UniqueConstraint  `json:"unique_constraints,omitempty"`
 	AllowedMethods    []string            `json:"allowed_methods,omitempty"`
 	DenyMethods       []string            `json:"deny_methods,omitempty"`
+	FTSLanguage       string              `json:"fts_language,omitempty"`
 }
 
 func (t *Table) QualifiedName() string {
