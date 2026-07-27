@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+data:
+  01-schema.sql: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        profile_metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    COMMENT ON TABLE users IS '@allow GET,HEAD,POST,PUT,PATCH,DELETE';
+
+    CREATE TABLE projects (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(200) NOT NULL,
+        author_id INT,
+        status VARCHAR(50) DEFAULT 'draft',
+        settings JSONB DEFAULT '{"is_public": false, "features_enabled": [], "limits": {"max_tasks": 100}}'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_project_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE project_tasks (
+        id SERIAL PRIMARY KEY,
+        project_id INT NOT NULL,
+        task_order INT NOT NULL,
+        title VARCHAR(200) NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{"priority": "medium", "tags": [], "custom_fields": {}}'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_task_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        CONSTRAINT uq_project_task_order UNIQUE (project_id, task_order)
+    );
+
+    CREATE INDEX idx_tasks_payload_gin ON project_tasks USING gin (payload);
+    CREATE INDEX idx_tasks_priority ON project_tasks ((payload->>'priority'));
+    CREATE INDEX idx_projects_settings_gin ON projects USING gin (settings jsonb_path_ops);
+
+    CREATE VIEW active_users AS
+    SELECT id, name, email, created_at
+    FROM users
+    WHERE email NOT LIKE '%deleted%';
+
+    COMMENT ON VIEW active_users IS 'Vue des utilisateurs actifs (read-only)';
+
+    CREATE TABLE articles (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        body tsvector NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX idx_articles_body ON articles USING gin(body);
+    COMMENT ON TABLE articles IS '@fts_language english';
+  02-stored-procs.sql: |
+    CREATE OR REPLACE FUNCTION get_user_profile(p_user_id INT)
+    RETURNS TABLE (user_id INT, user_name VARCHAR, user_email VARCHAR, project_count BIGINT, task_count BIGINT) AS $$
+    BEGIN
+        RETURN QUERY
+        SELECT u.id, u.name, u.email,
+            (SELECT count(*) FROM projects p WHERE p.author_id = u.id),
+            (SELECT count(*) FROM project_tasks pt JOIN projects p ON pt.project_id = p.id WHERE p.author_id = u.id)
+        FROM users u WHERE u.id = p_user_id;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE FUNCTION search_projects(p_search TEXT DEFAULT '', p_status VARCHAR DEFAULT NULL, p_limit INT DEFAULT 10, p_offset INT DEFAULT 0)
+    RETURNS TABLE (project_id INT, project_title VARCHAR, project_status VARCHAR, author_name VARCHAR, task_count BIGINT) AS $$
+    BEGIN
+        RETURN QUERY
+        SELECT pr.id, pr.title, pr.status, COALESCE(u.name, 'No author'),
+            (SELECT count(*) FROM project_tasks pt WHERE pt.project_id = pr.id)
+        FROM projects pr LEFT JOIN users u ON pr.author_id = u.id
+        WHERE (p_search = '' OR pr.title ILIKE '%' || p_search || '%')
+          AND (p_status IS NULL OR pr.status = p_status)
+        ORDER BY pr.id LIMIT p_limit OFFSET p_offset;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE FUNCTION get_stats()
+    RETURNS TABLE (total_users BIGINT, total_projects BIGINT, total_tasks BIGINT, public_projects BIGINT) AS $$
+    BEGIN
+        RETURN QUERY
+        SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM projects),
+            (SELECT count(*) FROM project_tasks),
+            (SELECT count(*) FROM projects WHERE (settings->>'is_public')::boolean = true);
+    END;
+    $$ LANGUAGE plpgsql;
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+data:
+  POSTGRES_USER: cG9zdGdyZXM=
+  POSTGRES_PASSWORD: cG9zdGdyZXM=
+  POSTGRES_DB: YXBw
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

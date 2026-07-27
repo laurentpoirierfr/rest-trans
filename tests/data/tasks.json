@@ -1,0 +1,26 @@
+[
+  {
+    "project_id": 1,
+    "task_order": 1,
+    "title": "Maquettage UI",
+    "payload": {"priority": "high", "tags": ["design", "front"], "estimated_hours": 12, "custom_fields": {"assignee": "Alice", "sprint": 1}}
+  },
+  {
+    "project_id": 1,
+    "task_order": 2,
+    "title": "Integration Stripe",
+    "payload": {"priority": "critical", "tags": ["backend", "payment"], "estimated_hours": 24, "custom_fields": {"assignee": "Bob", "sprint": 2}}
+  },
+  {
+    "project_id": 2,
+    "task_order": 1,
+    "title": "Audit des schémas existants",
+    "payload": {"priority": "medium", "tags": ["database", "audit"], "estimated_hours": 8, "custom_fields": {"blocking_issue": false}}
+  },
+  {
+    "project_id": 2,
+    "task_order": 2,
+    "title": "Ecriture des scripts SQL",
+    "payload": {"priority": "high", "tags": ["database", "sql"], "estimated_hours": 16, "custom_fields": {"reviewers": ["Alice", "Charlie"]}}
+  }
+]

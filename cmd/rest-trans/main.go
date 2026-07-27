@@ -117,7 +117,12 @@ func main() {
 
 	var txManager *transaction.Manager
 	if cfg.Transactions.Enabled {
-		txManager = transaction.NewManager(db, cfg.Transactions.TTL)
+		var err error
+		txManager, err = transaction.NewManager(db, cfg.Transactions.TTL)
+		if err != nil {
+			slog.Error("failed to initialize transaction manager", "error", err)
+			os.Exit(1)
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		txManager.StartCleanup(ctx, cfg.Transactions.CleanupInterval)

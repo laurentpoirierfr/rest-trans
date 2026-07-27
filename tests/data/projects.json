@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Refonte Site E-Commerce",
+    "author_id": 1,
+    "status": "active",
+    "settings": {"is_public": true, "features_enabled": ["cart", "stripe", "reviews"], "limits": {"max_tasks": 500}}
+  },
+  {
+    "title": "Migration Base de Données",
+    "author_id": 2,
+    "status": "in_progress",
+    "settings": {"is_public": false, "features_enabled": ["backup", "alerts"], "limits": {"max_tasks": 50}}
+  },
+  {
+    "title": "Projet Orphelin Test",
+    "author_id": null,
+    "status": "draft",
+    "settings": {"is_public": false, "features_enabled": []}
+  }
+]

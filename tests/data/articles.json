@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Introduction à PostgreSQL",
+    "body": "PostgreSQL est un SGBD relationnel open source puissant et flexible. Il supporte de nombreux types de données dont JSONB, les arrays et le full-text search."
+  },
+  {
+    "title": "API REST avec Go et Gin",
+    "body": "Gin est un framework HTTP performant pour Go. Il permet de créer des API REST rapidement avec un routing efficace et du middleware intégré."
+  },
+  {
+    "title": "Déploiement Kubernetes",
+    "body": "Kubernetes orchestre les conteneurs en production. Les charts Helm simplifient le déploiement des applications avec des templates réutilisables."
+  },
+  {
+    "title": "Transactions distribuées",
+    "body": "Le pattern Saga permet de gérer les transactions distribuées. Chaque étape peut être annulée en cas d'erreur pour garantir la cohérence des données."
+  },
+  {
+    "title": "Test d'intégration avec Testcontainers",
+    "body": "Testcontainers lance des conteneurs Docker pour les tests d'intégration. PostgreSQL, Redis et d'autres services sont disponibles pendant les tests."
+  }
+]

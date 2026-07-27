@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Alice Dupont",
+    "email": "alice@example.com",
+    "profile_metadata": {"role": "admin", "preferences": {"theme": "dark", "notifications": true}}
+  },
+  {
+    "name": "Bob Martin",
+    "email": "bob@example.com",
+    "profile_metadata": {"role": "editor", "preferences": {"theme": "light"}}
+  },
+  {
+    "name": "Charlie Durand",
+    "email": "charlie@example.com",
+    "profile_metadata": {"role": "viewer"}
+  }
+]
