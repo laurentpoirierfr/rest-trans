@@ -1,50 +1,60 @@
 # Transactions
 
-pREST supports distributed HTTP-level database transactions using the **Saga pattern**. Transaction metadata is stored in the main database, while operations are executed on the target database during commit. This enables multi-database and multi-instance deployments.
+rest-trans supporte des transactions distribuées au niveau HTTP en utilisant le **pattern Saga**. Les métadonnées de transaction sont stockées dans la base de données principale, tandis que les opérations sont exécutées sur la base cible lors du commit. Cela permet les déploiements multi-bases et multi-instances.
 
-## Overview
+## Vue d'ensemble
 
-The transaction workflow follows a simple pattern:
+Le workflow de transaction suit un schéma simple :
 
-1. **Start** a transaction to get a transaction ID
-2. **Execute** CRUD operations using the transaction ID in the `Authorization-Transaction` header (operations are staged, not executed immediately)
-3. **Commit** to execute all staged operations atomically on the target database, or **Rollback** to discard them
+1. **Démarrer** une transaction pour obtenir un ID de transaction
+2. **Exécuter** des opérations CRUD en utilisant l'ID de transaction dans le header `Authorization-Transaction` (les opérations sont mises en file d'attente, pas exécutées immédiatement)
+3. **Valider** (commit) pour exécuter toutes les opérations mises en file d'attente de manière atomique sur la base cationale, ou **Annuler** (rollback) pour les supprimer
 
-Transactions are stored in PostgreSQL tables (`prest_transactions` and `prest_transaction_operations`) in the main database, making them accessible from any pREST instance.
+Les transactions sont stockées dans des tables PostgreSQL (`rest_transactions` et `rest_transaction_operations`) dans la base principale, les rendant accessibles depuis n'importe quelle instance de rest-trans.
 
-## API Reference
+```mermaid
+flowchart LR
+    A[Client] -->|1. POST /transactions| B[rest-trans]
+    B -->|2. INSERT metadata| C[(Base Principale)]
+    A -->|3. POST /table + header TX| B
+    B -->|4. INSERT opération| C
+    A -->|5. POST /commit| B
+    B -->|6. BEGIN + ops + COMMIT| D[(Base Cible)]
+    B -->|7. UPDATE status| C
+```
 
-### Start a Transaction
+## Référence API
+
+### Démarrer une transaction
 
 ```
-POST /{database}/{schema}/transactions
+POST /{schema}/transactions
 ```
 
-Creates a new transaction and returns a transaction ID.
+Crée une nouvelle transaction et retourne un ID de transaction.
 
-**Response:**
+**Réponse :**
 ```json
 {
   "tx": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
-**Status:** `201 Created`
+**Statut :** `201 Created`
 
-### List Open Transactions
+### Lister les transactions ouvertes
 
 ```
-GET /{database}/{schema}/transactions
+GET /{schema}/transactions
 ```
 
-Returns all pending transactions for the specified database and schema.
+Retourne toutes les transactions en attente pour le schéma spécifié.
 
-**Response:**
+**Réponse :**
 ```json
 [
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "database": "mydb",
     "schema": "public",
     "status": "pending",
     "operation_count": 3,
@@ -53,21 +63,20 @@ Returns all pending transactions for the specified database and schema.
 ]
 ```
 
-**Status:** `200 OK`
+**Statut :** `200 OK`
 
-### Get Transaction Status
+### Obtenir le statut d'une transaction
 
 ```
-GET /{database}/{schema}/transactions/{txID}
+GET /{schema}/transactions/{txID}
 ```
 
-Returns the status and metadata of a specific transaction.
+Retourne le statut et les métadonnées d'une transaction spécifique.
 
-**Response:**
+**Réponse :**
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "database": "mydb",
   "schema": "public",
   "status": "pending",
   "operation_count": 3,
@@ -75,263 +84,282 @@ Returns the status and metadata of a specific transaction.
 }
 ```
 
-**Status:** `200 OK`
+**Statut :** `200 OK`
 
-### Commit Transaction
+### Valider (commit) une transaction
 
 ```
-POST /{database}/{schema}/transactions/{txID}/commit
+POST /{schema}/transactions/{txID}/commit
 ```
 
-Executes all staged operations atomically on the target database. The target database is resolved using the transaction's database name via the adapter registry.
+Exécute toutes les opérations mises en file d'attente de manière atomique sur la base cible.
 
-**Response:**
+**Réponse :**
 ```json
 {
   "status": "committed"
 }
 ```
 
-**Status:** `200 OK`
+**Statut :** `200 OK`
 
-### Rollback Transaction
+### Annuler (rollback) une transaction
 
 ```
-POST /{database}/{schema}/transactions/{txID}/rollback
+POST /{schema}/transactions/{txID}/rollback
 ```
 
-Discards all staged operations. No changes are made to any database.
+Supprime toutes les opérations mises en file d'attente. Aucune modification n'est apportée à la base.
 
-**Response:**
+**Réponse :**
 ```json
 {
   "status": "rolled_back"
 }
 ```
 
-**Status:** `200 OK`
+**Statut :** `200 OK`
 
-## Using Transactions
+## Utilisation des transactions
 
-### Basic Flow
+### Flux de base
 
 ```bash
-# 1. Start a transaction
-TX_ID=$(curl -s -X POST http://localhost:3000/mydb/public/transactions \
-  -H "Authorization: Bearer <token>" | jq -r '.tx')
+# 1. Démarrer une transaction
+TX_ID=$(curl -s -X POST http://localhost:3000/public/transactions \
+  -H "Content-Type: application/json" | jq -r '.tx')
 
-# 2. Insert a record (operation is staged, not executed)
-curl -X POST http://localhost:3000/mydb/public/orders \
-  -H "Authorization: Bearer <token>" \
+# 2. Insérer un enregistrement (opération mise en file d'attente, pas exécutée)
+curl -X POST http://localhost:3000/public/orders \
   -H "Authorization-Transaction: $TX_ID" \
   -H "Content-Type: application/json" \
   -d '{"product_id": 42, "quantity": 10, "status": "pending"}'
-# Response: 202 Accepted {"status":"pending","tx":"a1b2c3d4..."}
+# Réponse : 202 Accepted {"status":"pending","tx":"a1b2c3d4..."}
 
-# 3. Update another record (also staged)
-curl -X PUT http://localhost:3000/mydb/public/inventory?product_id=42 \
-  -H "Authorization: Bearer <token>" \
+# 3. Mettre à jour un autre enregistrement (aussi mis en file d'attente)
+curl -X PATCH http://localhost:3000/public/inventory?product_id=eq.42 \
   -H "Authorization-Transaction: $TX_ID" \
   -H "Content-Type: application/json" \
   -d '{"stock": "stock - 10"}'
-# Response: 202 Accepted {"status":"pending","tx":"a1b2c3d4..."}
+# Réponse : 202 Accepted {"status":"pending","tx":"a1b2c3d4..."}
 
-# 4. Check transaction status (shows operation count)
-curl http://localhost:3000/mydb/public/transactions/$TX_ID \
-  -H "Authorization: Bearer <token>"
-# Response: {"id":"...","status":"pending","operation_count":2,...}
+# 4. Vérifier le statut de la transaction (affiche le nombre d'opérations)
+curl http://localhost:3000/public/transactions/$TX_ID
+# Réponse : {"id":"...","status":"pending","operation_count":2,...}
 
-# 5. Commit all operations atomically on "mydb"
-curl -X POST "http://localhost:3000/mydb/public/transactions/$TX_ID/commit" \
-  -H "Authorization: Bearer <token>"
-# Response: 200 OK {"status":"committed"}
+# 5. Valider toutes les opérations atomiquement
+curl -X POST "http://localhost:3000/public/transactions/$TX_ID/commit"
+# Réponse : 200 OK {"status":"committed"}
 ```
 
-### Rollback Example
+### Exemple de rollback
 
 ```bash
-# Start transaction
-TX_ID=$(curl -s -X POST http://localhost:3000/mydb/public/transactions \
-  -H "Authorization: Bearer <token>" | jq -r '.tx')
+# Démarrer une transaction
+TX_ID=$(curl -s -X POST http://localhost:3000/public/transactions | jq -r '.tx')
 
-# Perform operations (staged)
-curl -X POST http://localhost:3000/mydb/public/orders \
-  -H "Authorization: Bearer <token>" \
+# Effectuer des opérations (mises en file d'attente)
+curl -X POST http://localhost:3000/public/orders \
   -H "Authorization-Transaction: $TX_ID" \
   -H "Content-Type: application/json" \
   -d '{"product_id": 42, "quantity": 10}'
 
-# Rollback - operations are discarded, nothing persists
-curl -X POST "http://localhost:3000/mydb/public/transactions/$TX_ID/rollback" \
-  -H "Authorization: Bearer <token>"
+# Annuler — les opérations sont supprimées, rien n'est persisté
+curl -X POST "http://localhost:3000/public/transactions/$TX_ID/rollback"
 ```
 
-### Supported Operations
+### Opérations supportées
 
-Within a transaction, you can use the following CRUD operations with the `Authorization-Transaction` header:
+Dans le cadre d'une transaction, vous pouvez utiliser les opérations CRUD suivantes avec le header `Authorization-Transaction` :
 
-- **INSERT:** `POST /{database}/{schema}/{table}`
-- **UPDATE:** `PUT/PATCH /{database}/{schema}/{table}`
-- **DELETE:** `DELETE /{database}/{schema}/{table}`
+- **INSERT :** `POST /{schema}/{table}`
+- **UPDATE :** `PUT/PATCH /{schema}/{table}`
+- **DELETE :** `DELETE /{schema}/{table}`
 
-**Note:** `SELECT` operations are not affected by transactions and always read committed data. Staged operations return `202 Accepted` instead of the normal response.
+**Note :** Les opérations `SELECT` ne sont pas affectées par les transactions et lisent toujours les données validées. Les opérations en file d'attente retournent `202 Accepted` au lieu de la réponse normale.
 
 ## Architecture
 
-### Saga Pattern
+### Pattern Saga
 
-Instead of holding a real PostgreSQL transaction open (which is tied to a single database connection), pREST uses the **Saga pattern**:
+Au lieu de maintenir une vraie transaction PostgreSQL ouverte (liée à une seule connexion de base), rest-trans utilise le **pattern Saga** :
 
-1. **Start:** Create a transaction record in `prest_transactions` (main database)
-2. **Execute:** Each CRUD operation is recorded in `prest_transaction_operations` with the SQL query and parameters (main database)
-3. **Commit:** 
-   - Lock the transaction in the main database
-   - Resolve the target database via the adapter registry
-   - Open a real database transaction on the **target database**
-   - Execute all staged operations in order
-   - Commit the target database transaction
-   - Update status and clean up in the main database
-4. **Rollback:** Simply delete the staged operations from the main database (no database changes)
+1. **Démarrer :** Créer un enregistrement de transaction dans `rest_transactions` (base principale)
+2. **Exécuter :** Chaque opération CRUD est enregistrée dans `rest_transaction_operations` avec la requête SQL et les paramètres (base principale)
+3. **Valider :**
+   - Verrouiller la transaction dans la base principale
+   - Ouvrir une vraie transaction de base sur la **base cible**
+   - Exécuter toutes les opérations en file d'attente
+   - Valider la transaction de la base cible
+   - Mettre à jour le statut et nettoyer dans la base principale
+4. **Annuler :** Simplement supprimer les opérations en file d'attente de la base principale (aucune modification de base)
 
-### Database Separation
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R as rest-trans
+    participant M as Base Principale
+    participant T as Base Cible
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Main Database                                │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ prest_transactions                                          │ │
-│  │ prest_transaction_operations                                │ │
-│  │ (transaction metadata + staged operations)                  │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Commit: resolve target DB
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   Target Database (mydb)                         │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │ orders                                                      │ │
-│  │ inventory                                                   │ │
-│  │ users                                                       │ │
-│  │ (actual business data)                                       │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+    Note over C,T: Démarrer la transaction
+    C->>R: POST /transactions
+    R->>M: INSERT INTO rest_transactions
+    R-->>C: 201 {tx: "abc123"}
 
-### Request Flow
+    Note over C,T: Stager les opérations
+    C->>R: POST /orders (header TX)
+    R->>M: INSERT INTO rest_transaction_operations
+    R-->>C: 202 {status: "pending"}
 
-```
-1. POST /mydb/public/transactions
-   → TransactionHandler.Start()
-     → INSERT INTO prest_transactions (main DB)
-     → 201 {"tx": "a1b2c3d4"}
+    C->>R: PATCH /inventory (header TX)
+    R->>M: INSERT INTO rest_transaction_operations
+    R-->>C: 202 {status: "pending"}
 
-2. POST /mydb/public/orders (Authorization-Transaction: a1b2c3d4)
-   → TransactionMiddleware validates txID exists and is pending
-   → CRUDHandler.Insert()
-     → INSERT INTO prest_transaction_operations (main DB)
-     → 202 {"status": "pending", "tx": "a1b2c3d4"}
-
-3. POST /mydb/public/transactions/a1b2c3d4/commit
-   → TransactionHandler.Commit()
-     → BEGIN on main DB (lock transaction)
-     → Read operations from prest_transaction_operations
-     → Resolve "mydb" adapter from registry
-     → BEGIN on target DB (mydb)
-     → Execute all staged operations
-     → COMMIT on target DB
-     → UPDATE prest_transactions SET status = 'committed'
-     → DELETE FROM prest_transaction_operations
-     → COMMIT on main DB
-     → 200 {"status": "committed"}
+    Note over C,T: Valider (commit atomique)
+    C->>R: POST /transactions/abc123/commit
+    R->>M: BEGIN + LOCK transaction
+    R->>M: SELECT operations
+    R->>T: BEGIN
+    R->>T: INSERT INTO orders (...)
+    R->>T: UPDATE inventory SET ...
+    R->>T: COMMIT
+    R->>M: UPDATE status = 'committed'
+    R->>M: DELETE FROM rest_transaction_operations
+    R->>M: COMMIT
+    R-->>C: 200 {status: "committed"}
 ```
 
-### Database Tables
+### Séparation des bases de données
+
+```mermaid
+graph TB
+    subgraph "Base Principale"
+        A[rest_transactions]
+        B[rest_transaction_operations]
+        C[metadata + opérations en file d'attente]
+    end
+
+    subgraph "Base Cible (business)"
+        D[orders]
+        E[inventory]
+        F[users]
+    end
+
+    A --> C
+    B --> C
+    C -->|Commit : résoudre la base cible| D
+    C -->|Commit| E
+    C -->|Commit| F
+```
+
+### Flux des requêtes
+
+```mermaid
+flowchart TD
+    A[POST /public/transactions] --> B[TransactionHandler.Start]
+    B --> C[INSERT INTO rest_transactions]
+    C --> D[201 {"tx": "abc123"}]
+
+    E[POST /public/orders\nheader: Authorization-Transaction: abc123] --> F[TransactionMiddleware]
+    F --> G{txID valide et pending?}
+    G -->|Non| H[409 Conflict]
+    G -->|Oui| I[INSERT INTO rest_transaction_operations]
+    I --> J[202 {"status": "pending", "tx": "abc123"}]
+
+    K[POST /public/transactions/abc123/commit] --> L[TransactionHandler.Commit]
+    L --> M[BEGIN sur base principale]
+    M --> N[Lire les opérations]
+    N --> O[Ouvrir transaction sur base cible]
+    O --> P[Exécuter toutes les opérations]
+    P --> Q[COMMIT sur base cible]
+    Q --> R[UPDATE status = committed]
+    R --> S[DELETE opérations]
+    S --> T[COMMIT sur base principale]
+    T --> U[200 {"status": "committed"}]
+```
+
+### Tables de base de données
 
 ```sql
--- Transaction metadata (in main database)
-CREATE TABLE prest_transactions (
+-- Métadonnées de transaction (base principale)
+CREATE TABLE rest_transactions (
     id VARCHAR(36) PRIMARY KEY,
-    database_name VARCHAR(255) NOT NULL,
     schema_name VARCHAR(255) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Staged operations (in main database)
-CREATE TABLE prest_transaction_operations (
+-- Opérations en file d'attente (base principale)
+CREATE TABLE rest_transaction_operations (
     id SERIAL PRIMARY KEY,
-    transaction_id VARCHAR(36) NOT NULL REFERENCES prest_transactions(id) ON DELETE CASCADE,
+    transaction_id VARCHAR(36) NOT NULL REFERENCES rest_transactions(id) ON DELETE CASCADE,
     operation VARCHAR(10) NOT NULL,
     table_name TEXT NOT NULL,
     sql_query TEXT NOT NULL,
     params JSONB,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-### Cleanup
+### Nettoyage
 
-A background goroutine runs every 60 seconds and deletes expired transactions (default TTL: 30 minutes). Expired transactions and their staged operations are automatically removed from the main database.
+Un goroutine en arrière-plan s'exécute toutes les 60 secondes et supprime les transactions expirées (TTL par défaut : 30 minutes). Les transactions expirées et leurs opérations en file d'attente sont automatiquement supprimées de la base principale.
 
 ## Configuration
 
-### Transaction TTL
+### TTL de transaction
 
-The TTL is configured in `app/app.go` when creating the `TransactionManager`:
+Le TTL est configuré dans `config.yaml` :
 
-```go
-txManager := transactions.NewManager(db, 30 * time.Minute)
+```yaml
+transactions:
+  enabled: true
+  ttl: 30m
+  cleanup_interval: 60s
 ```
 
-### Connection Pool
+### Pool de connexions
 
-- **Main database:** Used for transaction metadata and staged operations
-- **Target databases:** Resolved via the adapter registry during commit
+- **Base principale :** Utilisée pour les métadonnées de transaction et les opérations en file d'attente
+- **Bases cibles :** Résolues via le registre d'adaptateurs lors du commit
 
-## Multi-Database Deployment
+## Déploiement multi-bases de données
 
-With this architecture, you can serve multiple databases from a single pREST instance:
+Avec cette architecture, vous pouvez servir plusieurs bases de données depuis une seule instance de rest-trans :
 
-```
-                    ┌─────────────────┐
-                    │     pREST       │
-                    └────────┬────────┘
-                             │
-            ┌────────────────┼────────────────┐
-            │                │                │
-    ┌───────▼──────┐ ┌───────▼──────┐ ┌───────▼──────┐
-    │  Main DB     │ │  mydb        │ │  analytics   │
-    │ (metadata)   │ │ (business)   │ │ (reporting)  │
-    └──────────────┘ └──────────────┘ └──────────────┘
+```mermaid
+graph TB
+    A[rest-trans] --> B[Base Principale\nmetadata]
+    A --> C[mydb\nbusiness data]
+    A --> D[analytics\nreporting]
 ```
 
-- Transaction metadata always lives in the main database
-- Operations are executed on the database specified in the transaction
-- Each database must be configured in `prest.toml` and registered
+- Les métadonnées de transaction vivent toujours dans la base principale
+- Les opérations sont exécutées sur la base spécifiée dans la transaction
+- Chaque base doit être configurée et accessible
 
 ## Limitations
 
-1. **Deferred execution:** Operations are not executed until commit. SELECT queries will not see pending changes.
+1. **Exécution différée :** Les opérations ne sont pas exécutées avant le commit. Les requêtes SELECT ne verront pas les modifications en cours.
 
-2. **Order-dependent execution:** Operations are executed in the order they were added. If a later operation fails, earlier operations are already committed (no automatic rollback of individual operations).
+2. **Exécution dans l'ordre :** Les opérations sont exécutées dans l'ordre d'ajout. Si une opération ultérieure échoue, les opérations précédentes sont déjà validées (pas d'annulation individuelle automatique).
 
-3. **No isolation:** Concurrent transactions can interfere with each other. There is no pessimistic or optimistic locking.
+3. **Pas d'isolation :** Les transactions concurrentes peuvent s'interférer. Il n'y a pas de verrouillage pessimiste ou optimiste.
 
-4. **Connection pool pressure:** Commit executes all operations in a single transaction, which holds a connection for the duration.
+4. **Pression sur le pool de connexions :** Le commit exécute toutes les opérations dans une seule transaction, ce qui maintient une connexion pendant toute la durée.
 
-5. **No nested transactions:** Attempting to start a new transaction within an existing one is not supported.
+5. **Pas de transactions imbriquées :** Tenter de démarrer une nouvelle transaction dans une existante n'est pas supporté.
 
-6. **Main database required:** Transaction metadata is always stored in the main database. The main database must be accessible and have the transaction tables created.
+6. **Base principale requise :** Les métadonnées de transaction sont toujours stockées dans la base principale. La base principale doit être accessible et avoir les tables de transaction créées.
 
-## Error Handling
+## Gestion des erreurs
 
-| Scenario | HTTP Status | Error Message |
-|----------|-------------|---------------|
-| Transaction not found | `404 Not Found` | `transaction not found: <txID>` |
-| Transaction not pending | `409 Conflict` | `transaction not found or not pending` |
-| Database not found | `409 Conflict` | `database "xxx" not found in adapter registry` |
-| Commit fails | `409 Conflict` | `failed to commit on target database: <details>` |
-| Rollback fails | `409 Conflict` | `failed to rollback transaction: <details>` |
-| Invalid path segments | `400 Bad Request` | `invalid identifier in path` |
+| Scénario | Statut HTTP | Message d'erreur |
+|----------|-------------|------------------|
+| Transaction non trouvée | `404 Not Found` | `Transaction not found: <txID>` |
+| Transaction non pending | `409 Conflict` | `Transaction not found or not pending` |
+| Échec du commit | `409 Conflict` | `Failed to commit transaction: <details>` |
+| Échec du rollback | `409 Conflict` | `Failed to rollback transaction: <details>` |
+| En-tête TX invalide | `409 Conflict` | `Transaction not found or not pending` |
+| Corps de requête invalide | `400 Bad Request` | `Invalid JSON body` |
