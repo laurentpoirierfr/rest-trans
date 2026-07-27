@@ -26,6 +26,8 @@ type Operation struct {
 	TableName     string    `json:"table_name"`
 	SQLQuery      string    `json:"sql_query"`
 	Params        []byte    `json:"params,omitempty"`
+	BeforeState   []byte    `json:"before_state,omitempty"`
+	RowIDs        []byte    `json:"row_ids,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

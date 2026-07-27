@@ -372,7 +372,7 @@
                 </h1>
                 <div class="tagline">
                     Un binaire Go + PostgreSQL = une API REST complète, documentée,
-                    avec transactions distribuées et temps réel.
+                    avec transactions distribuées, full-text search, vues SQL et temps réel.
                 </div>
                 <div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem;">
                     <span class="badge"><strong>Zéro framework</strong> · Zéro ORM</span>
@@ -423,7 +423,10 @@
                 <span>⚡ Introspection auto</span>
                 <span>📄 OpenAPI généré</span>
                 <span>📡 SSE temps réel</span>
+                <span>🔎 Full-text search</span>
                 <span>🔁 Transactions distribuées</span>
+                <span>⏪ Post-commit rollback</span>
+                <span>👁️ Vues read-only</span>
                 <span>📊 Métriques Prometheus</span>
             </div>
         </div>
@@ -433,12 +436,16 @@
         <div class="grid-2">
             <div class="card"><div class="icon">🧠</div><h3>Introspection auto</h3><p>Tables, vues, PKs, FKs, contraintes uniques. Hot reload sans restart.</p></div>
             <div class="card"><div class="icon">🔍</div><h3>Filtrage avancé</h3><p>20+ opérateurs (<code>eq</code>, <code>like</code>, <code>in</code>, <code>gt</code>…), logiques <code>_and</code>/<code>_or</code>.</p></div>
+            <div class="card"><div class="icon">🔎</div><h3>Full-text search</h3><p>Filtre <code>_fts</code> avec <code>tsvector</code>/<code>tsquery</code>. Ranking automatique, langues configurables par table.</p></div>
             <div class="card"><div class="icon">📄</div><h3>Réponses JSON / CSV</h3><p>Sélection, tri, pagination, agrégats. Headers <code>Content-Range</code>.</p></div>
+            <div class="card"><div class="icon">👁️</div><h3>Vues SQL read-only</h3><p>Les vues deviennent des endpoints. Mutations automatiquement bloquées (405).</p></div>
             <div class="card"><div class="icon">📡</div><h3>Temps réel (SSE)</h3><p>Endpoint <code>/_stream</code>, triggers NOTIFY automatiques, console IHM.</p></div>
-            <div class="card"><div class="icon">🔁</div><h3>Transactions distribuées</h3><p>Pattern Saga : staging, commit atomique, rollback, TTL configurable.</p></div>
+            <div class="card"><div class="icon">🔁</div><h3>Transactions distribuées</h3><p>Pattern Saga : staging, commit atomique, TTL configurable.</p></div>
+            <div class="card"><div class="icon">⏪</div><h3>Post-commit Rollback</h3><p>Annuler un commit appliqué. Snapshots, détection de conflits, rollback multi-bases.</p></div>
             <div class="card"><div class="icon">📊</div><h3>RPC & procédures stockées</h3><p>Appel direct <code>/rpc/ma_fonction</code> avec paramètres JSON.</p></div>
             <div class="card"><div class="icon">🛡️</div><h3>Sécurité intégrée</h3><p>Permissions via commentaires PG ou config, rate limiting, tables cachées.</p></div>
             <div class="card"><div class="icon">📘</div><h3>Documentation auto</h3><p>OpenAPI, Swagger UI (<code>/docs</code>), IHM d'administration <code>/</code>.</p></div>
+            <div class="card"><div class="icon">⚙️</div><h3>Observabilité</h3><p>Métriques Prometheus, health checks, logging structuré JSON.</p></div>
         </div>
 
         <!-- ===== COMPARAISON ===== -->
@@ -450,6 +457,9 @@
                     <tr><td>Langage</td><td><strong>Go</strong></td><td>Haskell</td><td>Haskell</td></tr>
                     <tr><td>Binaire unique</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="muted">❌</span></td></tr>
                     <tr><td>Transactions distribuées</td><td><span class="check">✅</span> (Saga)</td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>Post-commit Rollback</td><td><span class="check">✅</span> (snapshots)</td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>Full-text search</td><td><span class="check">✅</span> (_fts)</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
+                    <tr><td>Vues read-only</td><td><span class="check">✅</span> (405 auto)</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
                     <tr><td>SSE temps réel</td><td><span class="check">✅</span> (auto)</td><td><span class="muted">❌</span></td><td><span class="check">✅</span> (GraphQL subs)</td></tr>
                     <tr><td>Documentation auto</td><td><span class="check">✅</span> (OpenAPI)</td><td><span class="check">✅</span> (OpenAPI)</td><td><span class="check">✅</span> (GraphQL)</td></tr>
                     <tr><td>RPC</td><td><span class="check">✅</span> (stored procedures)</td><td><span class="check">✅</span></td><td><span class="check">✅</span> (actions)</td></tr>
@@ -480,7 +490,7 @@
             <div class="endpoint-group">
                 <div class="endpoint-group-header">
                     <span class="endpoint-group-icon">🗄️</span>
-                    <span class="endpoint-group-title">CRUD</span>
+                    <span class="endpoint-group-title">CRUD & Vues</span>
                 </div>
                 <div class="endpoint-group-body">
                     <div class="endpoint-row"><span class="method multi">GET · HEAD</span><span class="path">/:schema/:table</span><span class="desc">Lire / compter</span></div>
@@ -488,7 +498,8 @@
                     <div class="endpoint-row"><span class="method post">PUT</span><span class="path">/:schema/:table</span><span class="desc">Upsert sur PK</span></div>
                     <div class="endpoint-row"><span class="method multi">PATCH</span><span class="path">/:schema/:table</span><span class="desc">Mettre à jour</span></div>
                     <div class="endpoint-row"><span class="method multi" style="background:#2e1a1a;color:#f87171;">DELETE</span><span class="path">/:schema/:table</span><span class="desc">Supprimer</span></div>
-                    <div class="endpoint-row"><span class="method multi">OPTIONS</span><span class="path">/:schema/:table</span><span class="desc">Métadonnées de la table</span></div>
+                    <div class="endpoint-row"><span class="method multi">OPTIONS</span><span class="path">/:schema/:table</span><span class="desc">Métadonnées (Allow dynamique)</span></div>
+                    <div class="endpoint-row" style="color:#5a7a9a;font-style:italic;"><span class="method" style="background:#1a1e2e;color:#7aa9ff;">👁️ Vues</span><span class="path">GET/HEAD/OPTIONS uniquement</span><span class="desc">Mutations → 405 PGRST201</span></div>
                 </div>
             </div>
 
@@ -516,14 +527,15 @@
             <div class="endpoint-group">
                 <div class="endpoint-group-header">
                     <span class="endpoint-group-icon">🔁</span>
-                    <span class="endpoint-group-title">Transactions distribuées</span>
+                    <span class="endpoint-group-title">Transactions & Post-commit Rollback</span>
                 </div>
                 <div class="endpoint-group-body">
                     <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions</span><span class="desc">Démarrer une transaction</span></div>
                     <div class="endpoint-row"><span class="method get">GET</span><span class="path">/:schema/transactions</span><span class="desc">Lister les transactions ouvertes</span></div>
                     <div class="endpoint-row"><span class="method get">GET</span><span class="path">/:schema/transactions/:txID</span><span class="desc">Statut d'une transaction</span></div>
-                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/commit</span><span class="desc">Commit atomique</span></div>
-                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/rollback</span><span class="desc">Annuler</span></div>
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/commit</span><span class="desc">Commit atomique + snapshots</span></div>
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/rollback</span><span class="desc">Rollback pending ou post-commit</span></div>
+                    <div class="endpoint-row" style="color:#5a7a9a;font-style:italic;"><span class="method" style="background:#2e1a2e;color:#f0a0f0;">⏪</span><span class="path">Snapshots: before_state, committed_state, row_ids</span><span class="desc">Conflits → 409</span></div>
                 </div>
             </div>
 
@@ -541,7 +553,79 @@
 
         </div>
 
-        <!-- ===== DÉMARRAGE RAPIDE ===== -->
+        <!-- ===== ARCHITECTURE DISTRIBUÉE ===== -->
+        <div class="diagram">
+            <h2>🏗️ Architecture distribuée — Post-commit Rollback</h2>
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                <!-- Couche Orchestrateur -->
+                <div style="display:flex; justify-content:center;">
+                    <div class="node highlight" style="font-size:1rem; padding:0.8rem 2rem;">
+                        API Gateway / Orchestrateur
+                        <div style="font-weight:300;font-size:0.8rem;margin-top:0.3rem;">Façade API · Règles métier · Coordination</div>
+                    </div>
+                </div>
+                <!-- Flèches vers services -->
+                <div style="display:flex; justify-content:center; gap:3rem; color:#5a7a9a; font-size:1.2rem;">
+                    <span>↓</span><span>↓</span><span>↓</span>
+                </div>
+                <!-- Services -->
+                <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:1.2rem;">
+                    <div class="node" style="text-align:center;">
+                        Order Service
+                        <div style="font-weight:300;font-size:0.75rem;">Validation · Priorité</div>
+                    </div>
+                    <div class="node" style="text-align:center;">
+                        Inventory Service
+                        <div style="font-weight:300;font-size:0.75rem;">Seuil min · Allocation</div>
+                    </div>
+                    <div class="node" style="text-align:center;">
+                        Payment Service
+                        <div style="font-weight:300;font-size:0.75rem;">Solde · Crédit</div>
+                    </div>
+                </div>
+                <!-- Flèches vers rest-trans -->
+                <div style="display:flex; justify-content:center; gap:3rem; color:#5a7a9a; font-size:1.2rem;">
+                    <span>↓</span><span>↓</span><span>↓</span>
+                </div>
+                <!-- rest-trans instances -->
+                <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:1.2rem;">
+                    <div class="node" style="text-align:center; border-color:#4a6a8f;">
+                        rest-trans
+                        <div style="font-weight:300;font-size:0.75rem;">orders_db</div>
+                    </div>
+                    <div class="node" style="text-align:center; border-color:#4a6a8f;">
+                        rest-trans
+                        <div style="font-weight:300;font-size:0.75rem;">inventory_db</div>
+                    </div>
+                    <div class="node" style="text-align:center; border-color:#4a6a8f;">
+                        rest-trans
+                        <div style="font-weight:300;font-size:0.75rem;">payments_db</div>
+                    </div>
+                </div>
+                <!-- Flèches vers bases -->
+                <div style="display:flex; justify-content:center; gap:3rem; color:#5a7a9a; font-size:1.2rem;">
+                    <span>↓</span><span>↓</span><span>↓</span>
+                </div>
+                <!-- Databases -->
+                <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:1.2rem;">
+                    <div class="node" style="text-align:center; background:#1a2a1a; border-color:#3a6a3a;">
+                        PostgreSQL
+                        <div style="font-weight:300;font-size:0.75rem;">orders + metadata</div>
+                    </div>
+                    <div class="node" style="text-align:center; background:#1a2a1a; border-color:#3a6a3a;">
+                        PostgreSQL
+                        <div style="font-weight:300;font-size:0.75rem;">inventory + metadata</div>
+                    </div>
+                    <div class="node" style="text-align:center; background:#1a2a1a; border-color:#3a6a3a;">
+                        PostgreSQL
+                        <div style="font-weight:300;font-size:0.75rem;">payments + metadata</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:1.5rem; font-size:0.88rem; color:#8899b0; text-align:center;">
+                En cas d'anomalie après commit, l'orchestrateur déclenche le <strong style="color:#f0a0f0;">rollback post-commit</strong> en parallèle sur les bases concernées.
+            </div>
+        </div>
         <div style="background:#0f161f; border-radius:20px; padding:1.8rem; border:1px solid #252f3c; margin:2.5rem 0;">
             <h2 style="font-size:1.3rem; font-weight:500; margin-bottom:0.8rem;">🚀 Démarrage rapide</h2>
             <pre style="background:#0b0e14; padding:1rem 1.5rem; border-radius:16px; overflow-x:auto; font-size:0.9rem; border:1px solid #1f2833; color:#b0c8e5;"><code>git clone https://github.com/laurentpoirierfr/rest-trans.git

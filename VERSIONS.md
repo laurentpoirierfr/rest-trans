@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.7.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **Post-commit Rollback** — Annuler un commit déjà appliqué en restaurant les valeurs originales
+  - Capture automatique des snapshots (`before_state`) lors du staging pour UPDATE/DELETE
+  - Stockage des IDs affectés (`row_ids`) pour les opérations INSERT
+  - Rollback post-commit : `POST /transactions/{txID}/rollback` sur une transaction `committed`
+  - Logique par mutation : INSERT→DELETE, UPDATE→UPDATE avec valeurs originales, DELETE→INSERT
+  - Détection de conflits : 409 Conflict si la ligne a été modifiée entre commit et rollback
+  - Rollback de transaction pending : behavior existant préservé
+
+### Améliorations
+
+- **AutomaticEnv Viper** — Variables d'environnement `REST_*` automatiquement liées aux config keys
+- **Documentation README** — Variables d'environnement documentées avec les deux formats
+
+### Fichiers modifiés
+
+- `infras/init-db/schema.sql` : `before_state JSONB`, `row_ids JSONB` sur `rest_transaction_operations`
+- `internal/transaction/types.go` : champs `BeforeState`, `RowIDs` sur `Operation`
+- `internal/transaction/manager.go` : `CaptureSnapshot()`, `RollbackPostCommit()`, `GetOperations()`
+- `internal/transaction/middleware.go` : capture des snapshots lors du staging
+- `internal/transaction/handler.go` : support rollback post-commit (pending + committed)
+- `internal/config/config.go` : `AutomaticEnv()` ajouté
+
+### Tests
+
+- `tests/rollback_test.go` : 5 tests (rollback update, insert, delete, pending, conflict)
+- `tests/fts_test.go` : 6 tests full-text search
+
+---
+
 ## v0.6.0
 
 **Date :** 27 juillet 2026
@@ -15,11 +50,14 @@
   - Langue par défaut : `english`
   - Validation : erreur 400 si colonne inexistante ou format invalide
 
+<<<<<<< HEAD
 ### Améliorations
 
 - **AutomaticEnv Viper** — Les variables d'environnement avec préfixe `REST_` sont automatiquement liées aux config keys (`REST_DATABASE_HOST` → `database.host`)
 - **Documentation README** — Variables d'environnement documentées avec les deux formats (legacy + Viper)
 
+=======
+>>>>>>> feature/post-commit-rollback
 ### Tests
 
 - `tests/fts_test.go` : 6 tests (basic, multi-word, ranking, colonne invalide, format invalide, aucun résultat)
@@ -30,7 +68,11 @@
 - `internal/schema/schema.go` : champ `FTSLanguage` sur `Table`
 - `internal/schema/introspect.go` : parser `@fts_language` dans les commentaires PG
 - `internal/query/params.go` : type `FtsFilter`, parsing `_fts` dans `Parse()`
+<<<<<<< HEAD
 - `internal/query/builder.go` : `buildFtsCondition()`, `_rank` dans SELECT, tri `_rank` dans ORDER BY
+=======
+- `internal/query/builder.go` : `buildFtsCondition()`, `_rank` dans SELECT + ORDER BY
+>>>>>>> feature/post-commit-rollback
 - `internal/config/config.go` : `AutomaticEnv()` ajouté
 - `infras/init-db/schema.sql` : table `articles` avec tsvector
 

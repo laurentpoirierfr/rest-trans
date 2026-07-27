@@ -330,7 +330,7 @@ transactions:
 
 ## Déploiement multi-bases de données
 
-Avec cette architecture, vous pouvez servir plusieurs bases de données depuis une seule instance de rest-trans :
+Avec cette architecture, vous pouvez servir plusieurs bases de données depuis une seule instance de rest-trans. Pour un scénario complet avec orchestration distribuée et post-commit rollback, voir la section [Post-commit Rollback](#post-commit-rollback--rollback-distribué-multi-bases).
 
 ```mermaid
 graph TB
@@ -342,6 +342,232 @@ graph TB
 - Les métadonnées de transaction vivent toujours dans la base principale
 - Les opérations sont exécutées sur la base spécifiée dans la transaction
 - Chaque base doit être configurée et accessible
+
+## Post-commit Rollback : rollback distribué multi-bases
+
+### Scénario d'usage
+
+Dans une architecture microservices, une opération métier complexe peut impliquer plusieurs bases de données. Par exemple, une commande client peut nécessiter :
+
+1. **Order Service** : créer la commande dans la base `orders_db`
+2. **Inventory Service** : réserver le stock dans la base `inventory_db`
+3. **Payment Service** : débiter le compte dans la base `payments_db`
+
+Chaque service utilise sa propre instance de rest-trans connectée à sa base. Un **orchestrateur** (façade API) coordonne les transactions. Si une étape échoue **après le commit**, l'orchestrateur peut déclencher un **post-commit rollback** sur les autres bases.
+
+### Architecture distribuée
+
+```mermaid
+graph TB
+    subgraph "Couche API — Façade / Orchestrateur"
+        Orch[API Gateway\nOrchestrateur]
+    end
+
+    subgraph "Couche Service — Règles Métier"
+        Svc1[Order Service\nRègles : validation,\npriorité client]
+        Svc2[Inventory Service\nRègles : seuil min,\nallocation stock]
+        Svc3[Payment Service\nRègles : solde min,\nlinites crédit]
+    end
+
+    subgraph "Couche Data — rest-trans + PostgreSQL"
+        RT1[rest-trans\ninstance orders]
+        RT2[rest-trans\ninstance inventory]
+        RT3[rest-trans\ninstance payments]
+
+        DB1[(orders_db\n+ metadata)]
+        DB2[(inventory_db\n+ metadata)]
+        DB3[(payments_db\n+ metadata)]
+    end
+
+    Orch -->|HTTP| Svc1
+    Orch -->|HTTP| Svc2
+    Orch -->|HTTP| Svc3
+
+    Svc1 -->|CRUD + TX| RT1
+    Svc2 -->|CRUD + TX| RT2
+    Svc3 -->|CRUD + TX| RT3
+
+    RT1 --> DB1
+    RT2 --> DB2
+    RT3 --> DB3
+```
+
+Chaque instance de rest-trans possède sa **base principale** (tables `rest_transactions` / `rest_transaction_operations`) dans la même base que les données métier. Cela permet de gérer les métadonnées de transaction localement tout en servant les données de chaque service.
+
+### Flux — commit réussi (happy path)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Orch as Orchestrateur
+    participant O as Order Service
+    participant I as Inventory Service
+    participant P as Payment Service
+    participant RT1 as rest-trans (orders)
+    participant RT2 as rest-trans (inventory)
+    participant RT3 as rest-trans (payments)
+    participant DB1 as orders_db
+    participant DB2 as inventory_db
+    participant DB3 as payments_db
+
+    Client->>Orch: POST /api/orders (créer commande)
+
+    Note over Orch,RT3: Phase 1 — Démarrer les transactions
+
+    Orch->>O: POST /orders + header TX
+    O->>RT1: POST /orders (staging)
+    RT1-->>O: 202 Accepted
+    O->>RT1: POST /orders/{id}/commit
+    RT1->>DB1: BEGIN + INSERT + COMMIT
+    RT1-->>O: 200 {status: committed}
+
+    Orch->>I: POST /inventory/reserve + header TX
+    I->>RT2: POST /inventory (staging)
+    RT2-->>I: 202 Accepted
+    I->>RT2: POST /inventory/{id}/commit
+    RT2->>DB2: BEGIN + UPDATE stock + COMMIT
+    RT2-->>I: 200 {status: committed}
+
+    Orch->>P: POST /payments/debit + header TX
+    P->>RT3: POST /payments (staging)
+    RT3-->>P: 202 Accepted
+    P->>RT3: POST /payments/{id}/commit
+    RT3->>DB3: BEGIN + INSERT paiement + COMMIT
+    RT3-->>P: 200 {status: committed}
+
+    Note over Orch,DB3: Phase 2 — Tout est committed, succès
+
+    Orch-->>Client: 200 Commande créée avec succès
+```
+
+### Flux — post-commit rollback (anomalie détectée)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Orch as Orchestrateur
+    participant O as Order Service
+    participant I as Inventory Service
+    participant P as Payment Service
+    participant RT1 as rest-trans (orders)
+    participant RT2 as rest-trans (inventory)
+    participant RT3 as rest-trans (payments)
+    participant DB1 as orders_db
+    participant DB2 as inventory_db
+    participant DB3 as payments_db
+
+    Client->>Orch: POST /api/orders (créer commande)
+
+    Note over Orch,DB3: Phase 1 — Les trois services commitent
+
+    Orch->>O: commit orders
+    O->>RT1: commit
+    RT1->>DB1: COMMIT ✓
+    Orch->>I: commit inventory
+    I->>RT2: commit
+    RT2->>DB2: COMMIT ✓
+    Orch->>P: commit payments
+    P->>RT3: commit
+    RT3->>DB3: COMMIT ✓
+
+    Note over Orch,DB3: Phase 2 — L'orchestrateur valide les résultats
+
+    Orch->>O: GET /orders/{id}/status
+    O-->>Orch: 200 {validated: true}
+    Orch->>I: GET /inventory/{id}/status
+    I-->>Orch: 200 {reserved: true}
+    Orch->>P: GET /payments/{id}/status
+    P-->>Orch: 400 Erreur métier : solde insuffisant
+
+    Note over Orch,DB3: Phase 3 — Anomalie détectée, rollback post-commit
+
+    par Rollback parallèle
+        Orch->>RT1: POST /orders/{tx}/rollback
+        RT1->>DB1: DELETE order (capturé au commit)
+        RT1-->>Orch: 200 {status: rolled_back}
+    and
+        Orch->>RT2: POST /inventory/{tx}/rollback
+        RT2->>DB2: RESTORE stock (capturé au commit)
+        RT2-->>Orch: 200 {status: rolled_back}
+    end
+
+    Note over Orch,DB3: Phase 4 — Toutes les bases restaurées
+
+    Orch-->>Client: 409 Commande annulée (solde insuffisant)
+```
+
+### Mécanisme interne du post-commit rollback
+
+Le rollback post-commit repose sur trois mécanismes dans rest-trans :
+
+#### 1. Capture des snapshots au commit
+
+Lors du `commit`, rest-trans capture automatiquement :
+- **`before_state`** : l'état de la ligne **avant** l'opération (pour UPDATE/DELETE)
+- **`committed_state`** : l'état de la ligne **après** le commit (pour UPDATE/INSERT)
+- **`row_ids`** : les identifiants des lignes affectées (pour INSERT)
+
+Ces snapshots sont stockés dans `rest_transaction_operations` et conservés après le commit.
+
+#### 2. Détection de conflits
+
+Avant d'appliquer un rollback, rest-trans compare l'état **actuel** de la ligne en base avec le `committed_state` :
+- Si la ligne n'a **pas changé** depuis le commit → rollback applicable
+- Si la ligne a **changé** (conflit) → rollback refusé (409 Conflict)
+
+#### 3. Restauration par type d'opération
+
+| Type | Mécanisme de restauration |
+|------|--------------------------|
+| **INSERT** | `DELETE FROM table WHERE id = <captured_id>` |
+| **UPDATE** | `UPDATE table SET <before_state> WHERE id = <id>` |
+| **DELETE** | `INSERT INTO table (<before_state>)` |
+
+#### Schéma de la capture
+
+```mermaid
+flowchart TD
+    subgraph "rest_transaction_operations (base principale)"
+        A[transaction_id]
+        B[operation: INSERT/UPDATE/DELETE]
+        C[table_name]
+        D[sql_query + params]
+        E["before_state (JSONB)"]
+        F["committed_state (JSONB)"]
+        G["row_ids (JSONB)"]
+    end
+
+    subgraph "Phase commit"
+        H[Lire operations] --> I[Exécuter sur base cible]
+        I --> J[Capturer committed_state]
+        J --> K[Capturer row_ids pour INSERT]
+        K --> L[Conserver les snapshots]
+    end
+
+    subgraph "Phase post-commit rollback"
+        M[Lire committed_state] --> N{Ligne modifiée\ndepuis le commit?}
+        N -->|Non| O[Restaurer before_state]
+        N -->|Oui| P[409 Conflict\nConflit détecté]
+    end
+
+    L --> M
+```
+
+### Cas d'usage concrets
+
+| Scénario | Déclencheur | Action |
+|----------|-------------|--------|
+| Commande refusée après paiement validé | Service paiement retourne erreur métier | Rollback order + inventory |
+| Stock insuffisant après réservation | Service inventory détecte rupture | Rollback order + payment |
+| Utilisateur banni après création de compte | Vérification fraud retardée | Rollback toutes les bases |
+| Double paiement détecté | Réconciliation asynchrone | Rollback payment |
+
+### Limitations
+
+1. **Rollback non atomique** : Les rollbacks sur plusieurs bases sont exécutés en parallèle, pas dans une seule transaction distribuée.
+2. **Fenêtre de vulnérabilité** : Entre le commit et le rollback, d'autres transactions peuvent modifier les données (conflits).
+3. **Pas de rollback automatique** : L'orchestrateur doit explicitement appeler `/rollback` sur chaque transaction. rest-trans ne déclenche pas de rollback automatique.
+4. **Base principale requise** : Les snapshots sont stockés dans la base principale. Si celle-ci est indisponible, le rollback est impossible.
 
 ## Limitations
 

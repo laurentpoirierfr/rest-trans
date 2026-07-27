@@ -123,21 +123,40 @@ func (h *Handler) Rollback(c *gin.Context) {
 		return
 	}
 
-	if tx == nil || tx.Status != StatusPending {
-		c.JSON(http.StatusConflict, gin.H{
-			"code":    "PGRST308",
-			"message": "Transaction not found or not pending",
+	if tx == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    "PGRST303",
+			"message": fmt.Sprintf("Transaction not found: %s", txID),
 		})
 		return
 	}
 
-	if err := h.Manager.Rollback(txID); err != nil {
-		c.JSON(http.StatusConflict, gin.H{
-			"code":    "PGRST309",
-			"message": fmt.Sprintf("Failed to rollback transaction: %v", err),
-		})
+	if tx.Status == StatusPending {
+		if err := h.Manager.Rollback(txID); err != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"code":    "PGRST309",
+				"message": fmt.Sprintf("Failed to rollback transaction: %v", err),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, RollbackResponse{Status: "rolled_back"})
 		return
 	}
 
-	c.JSON(http.StatusOK, RollbackResponse{Status: "rolled_back"})
+	if tx.Status == StatusCommitted {
+		if err := h.Manager.RollbackPostCommit(txID); err != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"code":    "PGRST320",
+				"message": fmt.Sprintf("Failed to rollback committed transaction: %v", err),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, RollbackResponse{Status: "rolled_back"})
+		return
+	}
+
+	c.JSON(http.StatusConflict, gin.H{
+		"code":    "PGRST308",
+		"message": fmt.Sprintf("Transaction cannot be rolled back: status=%s", tx.Status),
+	})
 }
