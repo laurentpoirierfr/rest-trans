@@ -18,12 +18,16 @@ type Manager struct {
 	stopCh   chan struct{}
 }
 
-func NewManager(db *sql.DB, ttl time.Duration) *Manager {
+func NewManager(db *sql.DB, ttl time.Duration) (*Manager, error) {
+	if err := Migrate(db); err != nil {
+		return nil, fmt.Errorf("transaction migration: %w", err)
+	}
+
 	return &Manager{
 		DB:     db,
 		TTL:    ttl,
 		stopCh: make(chan struct{}),
-	}
+	}, nil
 }
 
 func (m *Manager) Start(schemaName string) (*Transaction, error) {

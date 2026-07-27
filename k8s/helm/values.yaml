@@ -1,0 +1,72 @@
+replicaCount: 1
+
+image:
+  repository: rest-trans
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: rest-trans.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+server:
+  host: "0.0.0.0"
+  port: 3000
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  name: "app"
+  schemas: "public"
+  sslmode: "disable"
+  pool:
+    maxOpen: 25
+    maxIdle: 5
+    connMaxLife: "1h"
+    connMaxIdle: "10m"
+
+transactions:
+  enabled: true
+  ttl: "30m"
+  cleanupInterval: "60s"
+
+hotReload:
+  enabled: false
+  interval: "30s"
+  autoNotifyTriggers: true
+
+rateLimit:
+  enabled: false
+  requestsPerSecond: 10
+  burst: 20

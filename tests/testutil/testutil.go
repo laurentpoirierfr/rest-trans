@@ -149,7 +149,10 @@ func SetupSuite() *TestSuite {
 		}
 	}
 
-	txManager := transaction.NewManager(db, cfg.Transactions.TTL)
+	txManager, err := transaction.NewManager(db, cfg.Transactions.TTL)
+	if err != nil {
+		log.Fatalf("Failed to create transaction manager: %v", err)
+	}
 	txCtx, txCancel := context.WithCancel(context.Background())
 	txManager.StartCleanup(txCtx, cfg.Transactions.CleanupInterval)
 

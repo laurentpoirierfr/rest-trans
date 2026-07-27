@@ -12,7 +12,7 @@ CREATE TABLE users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE users IS '@allow GET,HEAD';
+COMMENT ON TABLE users IS '@allow GET,HEAD,POST,PUT,PATCH,DELETE';
 
 -- ==========================================
 -- 2. EN-TÊTE / AGRÉGATION (Projet)
@@ -80,33 +80,6 @@ CREATE INDEX idx_tasks_priority ON project_tasks ((payload->>'priority'));
 CREATE INDEX idx_projects_settings_gin ON projects USING gin (settings jsonb_path_ops);
 
 -- ==========================================
--- TRANSACTIONS (Saga pattern)
--- ==========================================
-CREATE TABLE rest_transactions (
-    id VARCHAR(36) PRIMARY KEY,
-    schema_name VARCHAR(255) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE rest_transaction_operations (
-    id SERIAL PRIMARY KEY,
-    transaction_id VARCHAR(36) NOT NULL REFERENCES rest_transactions(id) ON DELETE CASCADE,
-    operation VARCHAR(10) NOT NULL,
-    table_name TEXT NOT NULL,
-    sql_query TEXT NOT NULL,
-    params JSONB,
-    before_state JSONB,
-    committed_state JSONB,
-    row_ids JSONB,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_rest_tx_ops_txid ON rest_transaction_operations(transaction_id);
-CREATE INDEX idx_rest_tx_status ON rest_transactions(status);
-
--- ==========================================
 -- VUES (pour tests de read-only)
 -- ==========================================
 CREATE VIEW active_users AS
@@ -114,8 +87,7 @@ SELECT id, name, email, created_at
 FROM users
 WHERE email NOT LIKE '%deleted%';
 
-<<<<<<< HEAD
-COMMENT ON TABLE active_users IS 'Vue des utilisateurs actifs (read-only)';
+COMMENT ON VIEW active_users IS 'Vue des utilisateurs actifs (read-only)';
 
 -- ==========================================
 -- FULL-TEXT SEARCH (pour tests FTS)
@@ -130,6 +102,3 @@ CREATE TABLE articles (
 CREATE INDEX idx_articles_body ON articles USING gin(body);
 
 COMMENT ON TABLE articles IS '@fts_language english';
-=======
-COMMENT ON VIEW active_users IS 'Vue des utilisateurs actifs (read-only)';
->>>>>>> feature/post-commit-rollback

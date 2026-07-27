@@ -65,6 +65,92 @@ make docker-compose-up
 make run
 ```
 
+### Déploiement Kubernetes (Helm)
+
+Chart Helm disponible dans `./k8s/helm/` :
+
+```bash
+# Installer le chart
+helm install my-release ./k8s/helm/
+
+# Avec ingress activé
+helm install my-release ./k8s/helm/ --set ingress.enabled=true
+
+# Avec 3 replicas
+helm install my-release ./k8s/helm/ --set replicaCount=3
+
+# Avec image personnalisée
+helm install my-release ./k8s/helm/ \
+  --set image.repository=mon-registry/rest-trans \
+  --set image.tag=v1.0.0
+
+# Mettre à jour
+helm upgrade my-release ./k8s/helm/
+
+# Désinstaller
+helm uninstall my-release
+```
+
+### Test avec Minikube
+
+Scripts de test dans `./k8s/minikube/` :
+
+```bash
+# Test complet (démarre Minikube, déploie PostgreSQL + app, charge les données, teste)
+bash k8s/minikube/run.sh
+
+# Avec namespace personnalisé et 3 replicas
+bash k8s/minikube/run.sh my-namespace 3
+
+# Ou étape par étape
+bash k8s/minikube/start.sh      # Démarrer Minikube + build image
+bash k8s/minikube/deploy.sh     # Déployer PostgreSQL + rest-trans
+bash k8s/minikube/load-data.sh  # Charger les données de test via API
+bash k8s/minikube/test.sh       # Tester le déploiement
+bash k8s/minikube/cleanup.sh    # Nettoyer les ressources
+```
+
+| Script | Description |
+|--------|-------------|
+| `start.sh` | Démarre Minikube, active addons, build l'image Docker |
+| `deploy.sh` | Déploie PostgreSQL (avec schema SQL) puis rest-trans via Helm |
+| `load-data.sh` | Charge les données de test via l'API REST |
+| `test.sh` | Vérifie les pods, teste la connectivité API |
+| `cleanup.sh` | Supprime release Helm, PostgreSQL et namespace |
+| `run.sh` | Script complet (start → deploy → load → test) |
+
+**Données de test** (`tests/data/`) :
+
+| Fichier | Description |
+|---------|-------------|
+| `users.json` | 3 utilisateurs (Alice, Bob, Charlie) |
+| `projects.json` | 3 projets (E-Commerce, Migration, Orphelin) |
+| `tasks.json` | 4 tâches (maquetage, intégration, audit, scripts) |
+| `articles.json` | 5 articles pour les tests FTS |
+
+> **Note** : `active_users` est une VIEW — les données viennent de la table `users`.
+
+**Structure SQL** (`k8s/minikube/manifests/postgres.yaml`) :
+- Tables : `users`, `projects`, `project_tasks`, `articles`
+- Vues : `active_users`
+- Index JSONB pour les performances
+- Fonctions RPC : `get_user_profile`, `search_projects`, `get_stats`
+
+**Configuration** (`values.yaml`) :
+
+| Paramètre | Description | Défaut |
+|-----------|-------------|--------|
+| `replicaCount` | Nombre de pods | `1` |
+| `image.repository` | Image Docker | `rest-trans` |
+| `image.tag` | Tag de l'image | `appVersion` |
+| `ingress.enabled` | Activer l'ingress | `false` |
+| `ingress.className` | Classe ingress | `""` |
+| `ingress.hosts` | Hôtes et paths | `rest-trans.local` |
+| `database.host` | Host PostgreSQL | `localhost` |
+| `database.password` | Mot de passe PG | `postgres` |
+| `transactions.enabled` | Activer transactions | `true` |
+| `rateLimit.enabled` | Activer rate limiting | `false` |
+
 ## Commandes Make
 
 | Commande | Description |
@@ -77,6 +163,9 @@ make run
 | `make docker-build` | Build l'image Docker |
 | `make docker-compose-up` | Démarrer PostgreSQL + app |
 | `make docker-compose-down` | Arrêter Docker Compose |
+| `make helm-install` | Installer le chart Helm |
+| `make helm-upgrade` | Mettre à jour le chart Helm |
+| `make helm-uninstall` | Désinstaller le chart Helm |
 | `make dev-docker` | DB Docker + lancer en local |
 | `make fmt` | Formater le code |
 | `make lint` | Linter le code |
@@ -386,6 +475,11 @@ rest-trans/
 ├── infras/
 │   ├── compose.yaml       # Docker Compose
 │   └── init-db/           # Scripts d'initialisation SQL
+├── k8s/                   # Configurations Kubernetes
+│   └── helm/              # Chart Helm
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/     # Deployment, Service, Ingress, ConfigMap, Secret
 ├── Makefile               # Commandes de build/test/docker
 └── config.yaml            # Configuration par défaut
 ```

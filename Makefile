@@ -80,6 +80,45 @@ docker-compose-down:
 docker-compose-logs:
 	docker compose -f infras/compose.yaml logs -f
 
+# Kubernetes / Helm
+.PHONY: helm-install helm-upgrade helm-uninstall helm-lint helm-template
+
+helm-install:
+	helm install $(APP_NAME) ./k8s/helm/
+
+helm-upgrade:
+	helm upgrade $(APP_NAME) ./k8s/helm/
+
+helm-uninstall:
+	helm uninstall $(APP_NAME)
+
+helm-lint:
+	helm lint ./k8s/helm/
+
+helm-template:
+	helm template $(APP_NAME) ./k8s/helm/
+
+# Minikube
+.PHONY: minikube-start minikube-deploy minikube-test minikube-cleanup minikube-run minikube-load-data
+
+minikube-start:
+	bash ./k8s/minikube/start.sh
+
+minikube-deploy:
+	bash ./k8s/minikube/deploy.sh
+
+minikube-test:
+	bash ./k8s/minikube/test.sh
+
+minikube-cleanup:
+	bash ./k8s/minikube/cleanup.sh
+
+minikube-run:
+	bash ./k8s/minikube/run.sh
+
+minikube-load-data:
+	bash ./k8s/minikube/load-data.sh
+
 # Développement
 .PHONY: dev dev-docker dev-test
 
@@ -134,6 +173,21 @@ help:
 	@echo "  docker-logs        View logs"
 	@echo "  docker-compose-up  Start with Docker Compose"
 	@echo "  docker-compose-down Stop Docker Compose"
+	@echo ""
+	@echo "Kubernetes / Helm:"
+	@echo "  helm-install       Install Helm chart"
+	@echo "  helm-upgrade       Upgrade Helm chart"
+	@echo "  helm-uninstall     Uninstall Helm chart"
+	@echo "  helm-lint          Lint Helm chart"
+	@echo "  helm-template      Render Helm templates"
+	@echo ""
+	@echo "Minikube:"
+	@echo "  minikube-start     Start Minikube + build image"
+	@echo "  minikube-deploy    Deploy PostgreSQL + app"
+	@echo "  minikube-load-data Load test data via API"
+	@echo "  minikube-test      Test deployment"
+	@echo "  minikube-cleanup   Cleanup resources"
+	@echo "  minikube-run       Full test (start → deploy → load → test)"
 	@echo ""
 	@echo "Development:"
 	@echo "  dev                Run locally with env vars"

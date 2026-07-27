@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rest-trans.fullname" . }}
+  labels:
+    {{- include "rest-trans.labels" . | nindent 4 }}
+data:
+  REST_SERVER_HOST: {{ .Values.server.host | quote }}
+  REST_SERVER_PORT: {{ .Values.server.port | quote }}
+  REST_DATABASE_HOST: {{ .Values.database.host | quote }}
+  REST_DATABASE_PORT: {{ .Values.database.port | quote }}
+  REST_DATABASE_USER: {{ .Values.database.user | quote }}
+  REST_DATABASE_NAME: {{ .Values.database.name | quote }}
+  REST_DATABASE_SCHEMAS: {{ .Values.database.schemas | quote }}
+  REST_DATABASE_SSLMODE: {{ .Values.database.sslmode | quote }}
+  REST_DATABASE_POOL_MAX_OPEN: {{ .Values.database.pool.maxOpen | quote }}
+  REST_DATABASE_POOL_MAX_IDLE: {{ .Values.database.pool.maxIdle | quote }}
+  REST_DATABASE_POOL_CONN_MAX_LIFE: {{ .Values.database.pool.connMaxLife | quote }}
+  REST_DATABASE_POOL_CONN_MAX_IDLE: {{ .Values.database.pool.connMaxIdle | quote }}
+  REST_TRANSACTIONS_ENABLED: {{ .Values.transactions.enabled | quote }}
+  REST_TRANSACTIONS_TTL: {{ .Values.transactions.ttl | quote }}
+  REST_TRANSACTIONS_CLEANUP_INTERVAL: {{ .Values.transactions.cleanupInterval | quote }}
+  REST_HOT_RELOAD_ENABLED: {{ .Values.hotReload.enabled | quote }}
+  REST_HOT_RELOAD_INTERVAL: {{ .Values.hotReload.interval | quote }}
+  REST_HOT_RELOAD_AUTO_NOTIFY_TRIGGERS: {{ .Values.hotReload.autoNotifyTriggers | quote }}
+  REST_RATE_LIMIT_ENABLED: {{ .Values.rateLimit.enabled | quote }}
+  REST_RATE_LIMIT_REQUESTS_PER_SECOND: {{ .Values.rateLimit.requestsPerSecond | quote }}
+  REST_RATE_LIMIT_BURST: {{ .Values.rateLimit.burst | quote }}
