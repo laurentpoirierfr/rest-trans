@@ -3,12 +3,17 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/laurentpoirierfr/rest-trans/internal/api"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
+	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 
@@ -18,18 +23,28 @@ import (
 func main() {
 	cfg := config.Load()
 
-	log.Printf("Connecting to PostgreSQL at %s:%d/%s...", cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+
+	slog.Info("connecting to database",
+		"host", cfg.Database.Host,
+		"port", cfg.Database.Port,
+		"database", cfg.Database.Name,
+	)
 
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
+		slog.Error("failed to open database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	if err := retryPingDB(func() error { return db.Ping() }, 15, 2*time.Second); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		slog.Error("failed to ping database", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Database connected successfully")
+	slog.Info("database connected")
 
 	db.SetMaxOpenConns(cfg.Database.Pool.MaxOpen)
 	db.SetMaxIdleConns(cfg.Database.Pool.MaxIdle)
@@ -40,9 +55,12 @@ func main() {
 		db.SetConnMaxIdleTime(cfg.Database.Pool.ConnMaxIdle)
 	}
 
-	log.Printf("Pool: max_open=%d, max_idle=%d, conn_max_life=%v, conn_max_idle=%v",
-		cfg.Database.Pool.MaxOpen, cfg.Database.Pool.MaxIdle,
-		cfg.Database.Pool.ConnMaxLife, cfg.Database.Pool.ConnMaxIdle)
+	slog.Info("connection pool configured",
+		"max_open", cfg.Database.Pool.MaxOpen,
+		"max_idle", cfg.Database.Pool.MaxIdle,
+		"conn_max_life", cfg.Database.Pool.ConnMaxLife,
+		"conn_max_idle", cfg.Database.Pool.ConnMaxIdle,
+	)
 
 	schemas := cfg.Schemas()
 	defaultSchema := "public"
@@ -56,43 +74,44 @@ func main() {
 
 	for _, s := range schemas {
 		s = strings.TrimSpace(s)
-		log.Printf("Introspecting schema '%s'...", s)
+		slog.Info("introspecting schema", "schema", s)
 
 		schemaData, err := schema.Introspect(db, s)
 		if err != nil {
-			log.Fatalf("Failed to introspect schema '%s': %v", s, err)
+			slog.Error("failed to introspect schema", "schema", s, "error", err)
+			os.Exit(1)
 		}
 
 		for _, table := range schemaData {
 			store.AddTable(s, table)
 		}
 		totalTables += len(schemaData)
-		log.Printf("Schema '%s': found %d tables/views", s, len(schemaData))
+		slog.Info("schema introspected", "schema", s, "tables", len(schemaData))
 
 		funcs, err := schema.IntrospectFunctions(db, s)
 		if err != nil {
-			log.Printf("Warning: failed to introspect functions for schema '%s': %v", s, err)
+			slog.Warn("failed to introspect functions", "schema", s, "error", err)
 		} else {
 			for _, fn := range funcs {
 				store.AddFunction(s, fn)
 			}
 			totalFunctions += len(funcs)
-			log.Printf("Schema '%s': found %d functions", s, len(funcs))
+			slog.Info("functions introspected", "schema", s, "functions", len(funcs))
 		}
 	}
 
-	log.Printf("Total exposed: %d tables/views, %d functions", totalTables, totalFunctions)
+	slog.Info("introspection complete", "tables", totalTables, "functions", totalFunctions)
 	for _, sName := range store.SchemaNames() {
 		for name, table := range store.TablesBySchema(sName) {
 			if table.AllowedMethods != nil {
-				log.Printf("  - /%s/%s %v", sName, name, table.AllowedMethods)
+				slog.Info("endpoint", "path", "/"+sName+"/"+name, "methods", table.AllowedMethods)
 			} else {
-				log.Printf("  - /%s/%s", sName, name)
+				slog.Info("endpoint", "path", "/"+sName+"/"+name)
 			}
 		}
 	}
 	for name := range store.AllFunctions() {
-		log.Printf("  - /rpc/%s", name)
+		slog.Info("rpc endpoint", "path", "/rpc/"+name)
 	}
 
 	var txManager *transaction.Manager
@@ -101,17 +120,77 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		txManager.StartCleanup(ctx, cfg.Transactions.CleanupInterval)
-		log.Printf("Transactions enabled: TTL=%v, cleanup_interval=%v", cfg.Transactions.TTL, cfg.Transactions.CleanupInterval)
+		slog.Info("transactions enabled",
+			"ttl", cfg.Transactions.TTL,
+			"cleanup_interval", cfg.Transactions.CleanupInterval,
+		)
 	}
 
-	router := api.NewRouter(db, store, schemas, cfg, txManager)
+	hub := notification.NewHub()
+
+	var listener *notification.Listener
+	if cfg.HotReload.Enabled {
+		w := schema.NewWatcher(db, store, schemas, cfg.HotReload.Interval)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		w.Start(ctx)
+		slog.Info("hot reload enabled", "interval", cfg.HotReload.Interval)
+	}
+
+	tablesBySchema := make(map[string][]string)
+	for _, s := range schemas {
+		for name := range store.TablesBySchema(s) {
+			tablesBySchema[s] = append(tablesBySchema[s], name)
+		}
+	}
+	listener = notification.NewListener(cfg.DSN(), hub, schemas, tablesBySchema)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	listener.Start(ctx)
+	slog.Info("notification listener started")
+
+	router := api.NewRouter(db, store, schemas, cfg, txManager, hub)
 
 	addr := cfg.ServerAddr()
-	log.Printf("Server starting on %s", addr)
-
-	if err := router.Run(addr); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		slog.Info("server starting", "addr", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-quit
+	slog.Info("shutting down")
+
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutCancel()
+
+	if err := srv.Shutdown(shutCtx); err != nil {
+		slog.Error("server shutdown error", "error", err)
+	}
+
+	if listener != nil {
+		listener.Stop()
+	}
+
+	if txManager != nil {
+		txManager.StopCleanup()
+	}
+
+	db.Close()
+	slog.Info("server stopped")
 }
 
 func retryPingDB(ping func() error, attempts int, delay time.Duration) error {

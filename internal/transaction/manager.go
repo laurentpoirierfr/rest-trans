@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -276,12 +276,12 @@ func (m *Manager) cleanup() {
 		WHERE status = $1 AND created_at < $2`, StatusPending, cutoff,
 	)
 	if err != nil {
-		log.Printf("Warning: transaction cleanup failed: %v", err)
+		slog.Warn("transaction cleanup failed", "error", err)
 		return
 	}
 	count, _ := result.RowsAffected()
 	if count > 0 {
-		log.Printf("Transaction cleanup: removed %d expired transactions", count)
+		slog.Info("transaction cleanup", "removed", count)
 	}
 }
 

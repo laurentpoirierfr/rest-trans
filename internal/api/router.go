@@ -3,25 +3,28 @@ package api
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/laurentpoirierfr/rest-trans/internal/config"
 	"github.com/laurentpoirierfr/rest-trans/internal/docs"
+	"github.com/laurentpoirierfr/rest-trans/internal/metrics"
+	"github.com/laurentpoirierfr/rest-trans/internal/notification"
 	"github.com/laurentpoirierfr/rest-trans/internal/openapi"
 	"github.com/laurentpoirierfr/rest-trans/internal/rpc"
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
 	"github.com/laurentpoirierfr/rest-trans/internal/transaction"
 )
 
-func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager) *gin.Engine {
+func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *config.Config, txManager *transaction.Manager, hub *notification.Hub) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(loggingMiddleware())
+	r.Use(metrics.Middleware())
 	r.Use(corsMiddleware(store, cfg))
 	r.Use(methodGuard(store, cfg))
 	if txManager != nil {
@@ -30,6 +33,10 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 
 	h := NewHandler(db, store)
 	rpcH := rpc.NewHandler(db, store)
+
+	r.GET("/ops/liveness", metrics.LivenessHandler())
+	r.GET("/ops/readiness", metrics.ReadinessHandler(db))
+	r.GET("/ops/metrics", metrics.MetricsHandler())
 
 	r.GET("/info", func(c *gin.Context) {
 		tables := make(map[string][]string)
@@ -60,6 +67,10 @@ func NewRouter(db *sql.DB, store *schema.SchemaStore, schemas []string, cfg *con
 	docs.RegisterRoutes(r)
 
 	r.POST("/:schema/rpc/:function", rpcH.HandleRPC)
+
+	if hub != nil {
+		r.GET("/:schema/:table/_stream", HandleSSE(hub))
+	}
 
 	r.GET("/:schema/:table", h.HandleGet)
 	r.HEAD("/:schema/:table", h.HandleHead)
@@ -118,11 +129,11 @@ func methodGuard(store *schema.SchemaStore, cfg *config.Config) gin.HandlerFunc 
 func loggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		log.Printf("[%s] %s %s -> %d",
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.Request.URL.RawQuery,
-			c.Writer.Status(),
+		slog.Info("request",
+			"method", c.Request.Method,
+			"path", c.Request.URL.Path,
+			"query", c.Request.URL.RawQuery,
+			"status", c.Writer.Status(),
 		)
 	}
 }

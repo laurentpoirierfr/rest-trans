@@ -268,6 +268,10 @@ func introspectUniqueConstraints(db *sql.DB, schemaName string, tables map[strin
 					tbl.Columns[colNames[0]] = col
 				}
 			}
+			tbl.UniqueConstraints = append(tbl.UniqueConstraints, UniqueConstraint{
+				ConstraintName: constraintName,
+				Columns:        colNames,
+			})
 		}
 	}
 

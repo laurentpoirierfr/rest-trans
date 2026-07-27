@@ -1,6 +1,7 @@
 package query
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/laurentpoirierfr/rest-trans/internal/schema"
@@ -146,5 +147,111 @@ func TestBuildWithSchema(t *testing.T) {
 	}
 	if query == "" {
 		t.Error("expected non-empty query")
+	}
+}
+
+func TestBuildUpsertSingleColumn(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	query, _, err := b.BuildUpsert(
+		[]string{"name", "email"},
+		[]string{"email"},
+		1,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(query, "ON CONFLICT (email) DO UPDATE SET") {
+		t.Errorf("expected ON CONFLICT (email) DO UPDATE SET, got: %s", query)
+	}
+	if strings.Contains(query, "EXCLUDED.email") {
+		t.Errorf("should not update conflict column, got: %s", query)
+	}
+	if !strings.Contains(query, "EXCLUDED.name") {
+		t.Errorf("should update non-conflict column, got: %s", query)
+	}
+}
+
+func TestBuildUpsertMultiColumn(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	query, _, err := b.BuildUpsert(
+		[]string{"name", "email", "age"},
+		[]string{"name", "email"},
+		2,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(query, "ON CONFLICT (name, email) DO UPDATE SET") {
+		t.Errorf("expected ON CONFLICT (name, email), got: %s", query)
+	}
+	if !strings.Contains(query, "EXCLUDED.age") {
+		t.Errorf("should update non-conflict column 'age', got: %s", query)
+	}
+	if strings.Contains(query, "EXCLUDED.name") || strings.Contains(query, "EXCLUDED.email") {
+		t.Errorf("should not update conflict columns, got: %s", query)
+	}
+}
+
+func TestBuildUpsertDoNothing(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	query, _, err := b.BuildUpsert(
+		[]string{"email"},
+		[]string{"email"},
+		1,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(query, "ON CONFLICT (email) DO NOTHING") {
+		t.Errorf("expected ON CONFLICT (email) DO NOTHING, got: %s", query)
+	}
+}
+
+func TestBuildUpsertEmptyColumns(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	_, _, err := b.BuildUpsert([]string{}, []string{"email"}, 1)
+	if err == nil {
+		t.Error("expected error for empty columns")
+	}
+}
+
+func TestBuildUpsertEmptyConflictCols(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	_, _, err := b.BuildUpsert([]string{"name"}, []string{}, 1)
+	if err == nil {
+		t.Error("expected error for empty conflict columns")
+	}
+}
+
+func TestBuildUpsertRowCount(t *testing.T) {
+	table := testTable()
+	params := &Params{}
+	b := NewBuilder(table, params, "")
+
+	query, _, err := b.BuildUpsert(
+		[]string{"name", "email"},
+		[]string{"email"},
+		3,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(query, "($1, $2), ($3, $4), ($5, $6)") {
+		t.Errorf("expected 3 row placeholders, got: %s", query)
 	}
 }

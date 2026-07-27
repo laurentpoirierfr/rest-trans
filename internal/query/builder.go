@@ -235,6 +235,68 @@ func (b *Builder) BuildInsert(columns []string, rowCount int) (string, []interfa
 	return query, args, nil
 }
 
+func (b *Builder) BuildUpsert(columns []string, conflictCols []string, rowCount int) (string, []interface{}, error) {
+	if len(columns) == 0 || rowCount == 0 {
+		return "", nil, fmt.Errorf("empty upsert")
+	}
+	if len(conflictCols) == 0 {
+		return "", nil, fmt.Errorf("empty conflict columns")
+	}
+
+	argIdx := 1
+	var args []interface{}
+
+	placeholders := make([]string, 0, len(columns))
+
+	for row := 0; row < rowCount; row++ {
+		rowPlaceholders := make([]string, len(columns))
+		for i := range columns {
+			rowPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
+			argIdx++
+		}
+		placeholders = append(placeholders, "("+strings.Join(rowPlaceholders, ", ")+")")
+	}
+
+	query := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES %s",
+		b.qualifiedTable(),
+		strings.Join(columns, ", "),
+		strings.Join(placeholders, ", "),
+	)
+
+	conflictTarget := make([]string, len(conflictCols))
+	for i, col := range conflictCols {
+		conflictTarget[i] = col
+	}
+
+	setClauses := make([]string, 0, len(columns))
+	for _, col := range columns {
+		isConflict := false
+		for _, cc := range conflictCols {
+			if col == cc {
+				isConflict = true
+				break
+			}
+		}
+		if !isConflict {
+			setClauses = append(setClauses, col+" = EXCLUDED."+col)
+		}
+	}
+
+	var onConflict string
+	if len(setClauses) > 0 {
+		onConflict = fmt.Sprintf(
+			" ON CONFLICT (%s) DO UPDATE SET %s",
+			strings.Join(conflictTarget, ", "),
+			strings.Join(setClauses, ", "),
+		)
+	} else {
+		onConflict = fmt.Sprintf(" ON CONFLICT (%s) DO NOTHING", strings.Join(conflictTarget, ", "))
+	}
+
+	return query + onConflict, args, nil
+}
+
 func (b *Builder) BuildUpdate(columns []string) (string, []interface{}, error) {
 	if len(columns) == 0 {
 		return "", nil, fmt.Errorf("empty update")

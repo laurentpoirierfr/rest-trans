@@ -30,6 +30,7 @@ graph LR
 - **Resource Embedding** : `_select=*,tasks(title,status)` avec LEFT JOINs automatiques
 - **RPC / Fonctions stockées** : `POST /:schema/rpc/:function` avec introspection des paramètres
 - **Upsert** : `Prefer: resolution=merge-duplicates` (ON CONFLICT DO UPDATE)
+- **Bulk upsert** : `?on_conflict=col1,col2` pour cibler des colonnes spécifiques (pas juste la PK)
 - **PUT singleton** : upsert sur clé primaire
 - **Prefer header** : `return=representation`, `count=exact/planned/estimated`
 - **Agrégats** : `_select=count(*),avg(age)`
@@ -180,6 +181,7 @@ Les paramètres système sont préfixés avec `_` pour éviter les conflits avec
 | `_count` | Compteur | `_count=exact` |
 | `_or` | Filtre logique OR | `_or=(age.lt.18,age.gt.65)` |
 | `_and` | Filtre logique AND | `_and=(active.is.true,verified.is.true)` |
+| `on_conflict` | Colonnes pour ON CONFLICT (POST) | `on_conflict=email,name` |
 
 **Filtres colonnes** (sans préfixe) :
 
