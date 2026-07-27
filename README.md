@@ -234,6 +234,28 @@ Les paramètres système sont préfixés avec `_` pour éviter les conflits avec
 | `cd` | Est contenu (<@) | `tags=cd.{admin}` |
 | `ov` | Chevauchement (&&) | `tags=ov.{admin,user}` |
 
+### Full-text Search
+
+Recherche plein texte via PostgreSQL `tsvector`/`tsquery` :
+
+```bash
+# Recherche simple
+curl "http://localhost:3000/public/articles?_fts=body.hello+world"
+
+# Tri par pertinence
+curl "http://localhost:3000/public/articles?_fts=body.search&_order=_rank.desc"
+
+# Exclusion
+curl "http://localhost:3000/public/articles?_fts=not.body.deleted"
+```
+
+**Configuration par table** via commentaire PostgreSQL :
+```sql
+COMMENT ON TABLE articles IS '@fts_language french';
+```
+
+Langue par défaut : `english`. Le paramètre `_fts` génère automatiquement une colonne `_rank` (via `ts_rank`) pour le scoring de pertinence.
+
 ### Transactions
 
 ```mermaid
