@@ -231,7 +231,7 @@ sequenceDiagram
 | `/:schema/transactions/:txID/commit` | `POST` | Commit atomique |
 | `/:schema/transactions/:txID/rollback` | `POST` | Annuler |
 
-> Pour les détails complets (utilisation, architecture, limites), voir [TRANSACTIONS_FR.md](TRANSACTIONS_FR.md).
+> Pour les détails complets (utilisation, architecture, limites), voir [TRANSACTIONS.md](TRANSACTIONS.md).
 
 ### RPC (Procédures stockées)
 
