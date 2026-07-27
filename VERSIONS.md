@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.4.0
+
+**Date :** 27 juillet 2026
+
+### Nouvelles fonctionnalités
+
+- **Tests avec données isolées** — Chaque test nettoie ses inserts via `t.Cleanup()`
+  - Helpers `UniqueSuffix()`, `UniqueEmail()`, `UniqueName()` pour identifiants uniques
+  - `SetupTest(t)` enregistre automatiquement le nettoyage (users, projects, project_tasks)
+  - Les tests CRUD/RPC/Transactions sont totalement indépendants
+  - Les tests de lecture (filter, openapi) utilisent les données seed sans modification
+
+### Améliorations
+
+- **Documentation PROJECT.md** — Document de présentation du projet avec diagrammes mermaid
+  - Pitch, architecture, fonctionnalités, comparaison avec PostgREST/Hasura
+  - Prêt pour génération de site vitrine par IA
+- **Site vitrine docs/index.html** — Page statique de présentation du projet
+  - Design dark mode avec gradients et cartes animées
+  - Section Architecture avec schéma CSS pur (pas de dépendance externe)
+  - 8 cartes de fonctionnalités avec icônes
+  - Tableau comparatif rest-trans vs PostgREST vs Hasura
+  - Endpoints clés regroupés par catégorie (Documentation, CRUD, SSE, RPC, Transactions, Ops)
+  - Badges colorés par méthode HTTP (GET vert, POST orange, DELETE rouge)
+  - Démarrage rapide avec bloc de code
+  - CTA GitHub + lien vers la documentation
+
+---
+
 ## v0.3.0
 
 **Date :** 27 juillet 2026

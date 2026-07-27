@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -196,4 +198,44 @@ func TeardownAll() {
 	for i := len(teardownFuncs) - 1; i >= 0; i-- {
 		teardownFuncs[i]()
 	}
+}
+
+var testCounter int64
+
+func UniqueSuffix() string {
+	n := atomic.AddInt64(&testCounter, 1)
+	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), n)
+}
+
+func UniqueEmail(prefix string) string {
+	return fmt.Sprintf("%s-%s@example.com", prefix, UniqueSuffix())
+}
+
+func UniqueName(prefix string) string {
+	return fmt.Sprintf("%s-%s", prefix, UniqueSuffix())
+}
+
+func (s *TestSuite) SetupTest(t interface{ Cleanup(func()); Logf(string, ...any) }) func() {
+	prefix := fmt.Sprintf("test-%d", time.Now().UnixNano())
+
+	t.Cleanup(func() {
+		_, err := s.DB.Exec("DELETE FROM project_tasks WHERE title LIKE $1", prefix+"%")
+		if err != nil {
+			t.Logf("cleanup project_tasks: %v", err)
+		}
+		_, err = s.DB.Exec("DELETE FROM projects WHERE title LIKE $1", prefix+"%")
+		if err != nil {
+			t.Logf("cleanup projects: %v", err)
+		}
+		_, err = s.DB.Exec("DELETE FROM users WHERE email LIKE $1", prefix+"%")
+		if err != nil {
+			t.Logf("cleanup users: %v", err)
+		}
+	})
+
+	return func() {}
+}
+
+func RandInt(min, max int) int {
+	return min + rand.Intn(max-min+1)
 }

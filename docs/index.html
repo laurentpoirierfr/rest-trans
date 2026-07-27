@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>rest-trans · API REST auto-générée</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+    <style>
+        /* ---------- reset & base ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, 'Segoe UI', Roboto, -apple-system, sans-serif;
+            background: #0b0e14;
+            color: #e6edf5;
+            line-height: 1.6;
+            padding: 2rem 1.5rem;
+        }
+
+        a {
+            color: #7aa9ff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* ---------- header ---------- */
+        .hero {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid #2a313c;
+            padding-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #c0d8ff, #7aa9ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero h1 small {
+            font-size: 1.2rem;
+            font-weight: 400;
+            background: none;
+            -webkit-text-fill-color: #8899b0;
+            color: #8899b0;
+            margin-left: 0.5rem;
+        }
+
+        .badge-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .badge {
+            background: #1f2833;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            border: 1px solid #2f3a48;
+            color: #b0c8e5;
+        }
+        .badge strong {
+            color: #e6edf5;
+        }
+
+        .tagline {
+            font-size: 1.3rem;
+            color: #b0c8e5;
+            max-width: 700px;
+            margin: 1.5rem 0 1rem;
+            border-left: 4px solid #7aa9ff;
+            padding-left: 1.5rem;
+        }
+
+        /* ---------- grille cartes ---------- */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.8rem;
+            margin: 3rem 0;
+        }
+
+        .card {
+            background: #141b24;
+            border-radius: 20px;
+            padding: 1.8rem 1.8rem 2rem;
+            border: 1px solid #252f3c;
+            transition: border 0.2s, transform 0.15s;
+        }
+        .card:hover {
+            border-color: #4a6a8f;
+            transform: translateY(-4px);
+        }
+        .card .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .card h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #d6e5ff;
+        }
+        .card p {
+            color: #b0c8e5;
+            font-size: 0.98rem;
+        }
+        .card code {
+            background: #0b0e14;
+            padding: 0.2rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #c0d8ff;
+            border: 1px solid #252f3c;
+        }
+
+        /* ---------- schémas mermaid (version CSS pur) ---------- */
+        .diagram {
+            background: #0f161f;
+            border-radius: 24px;
+            padding: 1.8rem 1.5rem;
+            border: 1px solid #252f3c;
+            margin: 2.5rem 0;
+            overflow-x: auto;
+        }
+        .diagram h2 {
+            font-size: 1.3rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+            color: #b0c8e5;
+        }
+
+        .mermaid-box {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem 1.8rem;
+            font-size: 0.95rem;
+            min-width: 300px;
+        }
+        .mermaid-box .node {
+            background: #1f2833;
+            padding: 0.6rem 1.2rem;
+            border-radius: 30px;
+            border: 1px solid #2f3a48;
+            white-space: nowrap;
+        }
+        .mermaid-box .node.highlight {
+            background: #1f3a5a;
+            border-color: #4a7abf;
+        }
+        .mermaid-box .arrow {
+            color: #5a7a9a;
+            font-size: 1.4rem;
+            font-weight: 300;
+        }
+        .mermaid-box .arrow.down {
+            display: block;
+            transform: rotate(90deg);
+            margin: 0 -0.5rem;
+        }
+
+        .flow-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem 1.2rem;
+            margin: 0.5rem 0;
+        }
+
+        /* ---------- tableau comparatif ---------- */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 2.5rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            background: #0f161f;
+            border-radius: 18px;
+            overflow: hidden;
+        }
+        th {
+            background: #1a2330;
+            color: #b0c8e5;
+            font-weight: 600;
+            padding: 1rem 1rem;
+            text-align: left;
+        }
+        td {
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid #1f2833;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .check {
+            color: #5fcf8a;
+            font-weight: 700;
+        }
+        .muted {
+            color: #5a7a9a;
+        }
+
+        /* ---------- endpoints ---------- */
+        .endpoint-groups {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .endpoint-group {
+            background: #0f161f;
+            border-radius: 16px;
+            border: 1px solid #252f3c;
+            overflow: hidden;
+        }
+        .endpoint-group-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.8rem 1.2rem;
+            background: #141b24;
+            border-bottom: 1px solid #1f2833;
+        }
+        .endpoint-group-icon {
+            font-size: 1.1rem;
+        }
+        .endpoint-group-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #d6e5ff;
+        }
+        .endpoint-group-body {
+            padding: 0.6rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .endpoint-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.35rem 0;
+            font-size: 0.88rem;
+            color: #b0c8e5;
+        }
+        .endpoint-row .method {
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            min-width: 50px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .endpoint-row .method.get { background: #1a2e1a; color: #5fcf8a; }
+        .endpoint-row .method.post { background: #2e2a1a; color: #f0c060; }
+        .endpoint-row .method.multi { background: #1a1e2e; color: #7aa9ff; }
+        .endpoint-row .path {
+            font-family: 'Menlo', 'Cascadia Code', monospace;
+            background: #0b0e14;
+            padding: 0.15rem 0.6rem;
+            border-radius: 8px;
+            border: 1px solid #1f2833;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        .endpoint-row .desc {
+            color: #5a7a9a;
+            margin-left: auto;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+
+        /* ---------- footer & CTA ---------- */
+        .cta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 3.5rem;
+            padding-top: 2rem;
+            border-top: 1px solid #1f2833;
+        }
+        .btn {
+            background: #7aa9ff;
+            color: #0b0e14;
+            padding: 0.7rem 1.8rem;
+            border-radius: 40px;
+            font-weight: 600;
+            border: none;
+            font-size: 1rem;
+            transition: background 0.2s;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #a0c4ff;
+            text-decoration: none;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #4a6a8f;
+            color: #b0c8e5;
+        }
+        .btn-outline:hover {
+            background: #1f2833;
+            border-color: #7aa9ff;
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            color: #5a7a9a;
+        }
+        .footer-links a {
+            color: #8899b0;
+        }
+
+        /* ---------- responsive ---------- */
+        @media (max-width: 700px) {
+            .hero {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            .tagline {
+                font-size: 1.1rem;
+            }
+            .card {
+                padding: 1.2rem;
+            }
+            .mermaid-box .arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- ===== HEADER ===== -->
+        <header class="hero">
+            <div>
+                <h1>
+                    rest-trans
+                    <small>⚡</small>
+                </h1>
+                <div class="tagline">
+                    Un binaire Go + PostgreSQL = une API REST complète, documentée,
+                    avec transactions distribuées et temps réel.
+                </div>
+                <div style="margin-top: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem;">
+                    <span class="badge"><strong>Zéro framework</strong> · Zéro ORM</span>
+                    <span class="badge"><strong>Go 1.25+</strong> · PostgreSQL 16+</span>
+                    <span class="badge"><strong>MIT</strong> · open source</span>
+                </div>
+            </div>
+            <div class="badge-group">
+                <a href="https://github.com/laurentpoirierfr/rest-trans" class="badge" style="background:#1f2a3a;">📦 GitHub</a>
+                <a href="#docs" class="badge" style="background:#1f2a3a;">📘 OpenAPI</a>
+            </div>
+        </header>
+
+        <!-- ===== PROBLÈME / SOLUTION ===== -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 1rem 0 2.5rem;">
+            <div class="card" style="border-color: #2f3a48;">
+                <div class="icon">🧩</div>
+                <h3>Le problème</h3>
+                <p>
+                    Construire une API REST robuste, c'est du travail répétitif :
+                    routes CRUD, filtrage, pagination, documentation, transactions,
+                    temps réel, monitoring, sécurité… <strong>Chaque projet réinvente la même roue.</strong>
+                </p>
+            </div>
+            <div class="card" style="border-color: #2f4a6a;">
+                <div class="icon">✨</div>
+                <h3>La solution</h3>
+                <p>
+                    rest-trans <strong>introspectionne</strong> votre schéma PostgreSQL et
+                    <strong>génère automatiquement</strong> une API REST complète.
+                    Ajoutez une colonne ? L'API se met à jour. Créez une vue ? Elle devient un endpoint.
+                    Écrivez une fonction stockée ? Elle devient un RPC.
+                </p>
+            </div>
+        </div>
+
+        <!-- ===== DIAGRAMME ARCHITECTURE (CSS pur) ===== -->
+        <div class="diagram">
+            <h2>📐 Architecture</h2>
+            <div class="mermaid-box">
+                <span class="node">Client<br /><span style="font-weight:300;font-size:0.8rem;">Frontend / Mobile / CLI</span></span>
+                <span class="arrow">→</span>
+                <span class="node highlight">rest-trans (Go)<br /><span style="font-weight:300;font-size:0.8rem;">Gin · Viper · lib/pq</span></span>
+                <span class="arrow">→</span>
+                <span class="node">PostgreSQL 16+<br /><span style="font-weight:300;font-size:0.8rem;">Tables · Vues · Fonctions · Triggers</span></span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:0.8rem 2rem; margin-top:1.5rem; font-size:0.9rem; color:#8899b0;">
+                <span>⚡ Introspection auto</span>
+                <span>📄 OpenAPI généré</span>
+                <span>📡 SSE temps réel</span>
+                <span>🔁 Transactions distribuées</span>
+                <span>📊 Métriques Prometheus</span>
+            </div>
+        </div>
+
+        <!-- ===== FONCTIONNALITÉS (cartes) ===== -->
+        <h2 style="font-size:1.8rem; font-weight:600; margin:2rem 0 0.5rem;">Fonctionnalités</h2>
+        <div class="grid-2">
+            <div class="card"><div class="icon">🧠</div><h3>Introspection auto</h3><p>Tables, vues, PKs, FKs, contraintes uniques. Hot reload sans restart.</p></div>
+            <div class="card"><div class="icon">🔍</div><h3>Filtrage avancé</h3><p>20+ opérateurs (<code>eq</code>, <code>like</code>, <code>in</code>, <code>gt</code>…), logiques <code>_and</code>/<code>_or</code>.</p></div>
+            <div class="card"><div class="icon">📄</div><h3>Réponses JSON / CSV</h3><p>Sélection, tri, pagination, agrégats. Headers <code>Content-Range</code>.</p></div>
+            <div class="card"><div class="icon">📡</div><h3>Temps réel (SSE)</h3><p>Endpoint <code>/_stream</code>, triggers NOTIFY automatiques, console IHM.</p></div>
+            <div class="card"><div class="icon">🔁</div><h3>Transactions distribuées</h3><p>Pattern Saga : staging, commit atomique, rollback, TTL configurable.</p></div>
+            <div class="card"><div class="icon">📊</div><h3>RPC & procédures stockées</h3><p>Appel direct <code>/rpc/ma_fonction</code> avec paramètres JSON.</p></div>
+            <div class="card"><div class="icon">🛡️</div><h3>Sécurité intégrée</h3><p>Permissions via commentaires PG ou config, rate limiting, tables cachées.</p></div>
+            <div class="card"><div class="icon">📘</div><h3>Documentation auto</h3><p>OpenAPI, Swagger UI (<code>/docs</code>), IHM d'administration <code>/</code>.</p></div>
+        </div>
+
+        <!-- ===== COMPARAISON ===== -->
+        <h2 style="font-size:1.5rem; font-weight:600; margin:2.5rem 0 0.5rem;">Comparaison</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th></th><th><strong>rest-trans</strong></th><th>PostgREST</th><th>Hasura</th></tr></thead>
+                <tbody>
+                    <tr><td>Langage</td><td><strong>Go</strong></td><td>Haskell</td><td>Haskell</td></tr>
+                    <tr><td>Binaire unique</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>Transactions distribuées</td><td><span class="check">✅</span> (Saga)</td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>SSE temps réel</td><td><span class="check">✅</span> (auto)</td><td><span class="muted">❌</span></td><td><span class="check">✅</span> (GraphQL subs)</td></tr>
+                    <tr><td>Documentation auto</td><td><span class="check">✅</span> (OpenAPI)</td><td><span class="check">✅</span> (OpenAPI)</td><td><span class="check">✅</span> (GraphQL)</td></tr>
+                    <tr><td>RPC</td><td><span class="check">✅</span> (stored procedures)</td><td><span class="check">✅</span></td><td><span class="check">✅</span> (actions)</td></tr>
+                    <tr><td>Rate limiting</td><td><span class="check">✅</span> intégré</td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>Hot reload</td><td><span class="check">✅</span></td><td><span class="muted">❌</span></td><td><span class="muted">❌</span></td></tr>
+                    <tr><td>IHM d'admin</td><td><span class="check">✅</span> (index.html)</td><td><span class="muted">❌</span></td><td><span class="check">✅</span> (console)</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ===== ENDPOINTS ===== -->
+        <h2 style="font-size:1.5rem; font-weight:600; margin:2.5rem 0 0.5rem;">Endpoints clés</h2>
+        <div class="endpoint-groups">
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">📚</span>
+                    <span class="endpoint-group-title">Documentation & Interface</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/</span><span class="desc">IHM interface web</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/docs</span><span class="desc">Swagger UI</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/openapi.json</span><span class="desc">Spec OpenAPI</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/info</span><span class="desc">Métadonnées de l'API</span></div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">🗄️</span>
+                    <span class="endpoint-group-title">CRUD</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method multi">GET · HEAD</span><span class="path">/:schema/:table</span><span class="desc">Lire / compter</span></div>
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/:table</span><span class="desc">Insérer (objet ou tableau)</span></div>
+                    <div class="endpoint-row"><span class="method post">PUT</span><span class="path">/:schema/:table</span><span class="desc">Upsert sur PK</span></div>
+                    <div class="endpoint-row"><span class="method multi">PATCH</span><span class="path">/:schema/:table</span><span class="desc">Mettre à jour</span></div>
+                    <div class="endpoint-row"><span class="method multi" style="background:#2e1a1a;color:#f87171;">DELETE</span><span class="path">/:schema/:table</span><span class="desc">Supprimer</span></div>
+                    <div class="endpoint-row"><span class="method multi">OPTIONS</span><span class="path">/:schema/:table</span><span class="desc">Métadonnées de la table</span></div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">📡</span>
+                    <span class="endpoint-group-title">Temps réel & Streams</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/:schema/:table/_stream</span><span class="desc">SSE notifications en temps réel</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/ops/streams</span><span class="desc">Liste des flux disponibles</span></div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">📊</span>
+                    <span class="endpoint-group-title">RPC & Procédures stockées</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/rpc/:function</span><span class="desc">Appel de fonction stockée</span></div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">🔁</span>
+                    <span class="endpoint-group-title">Transactions distribuées</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions</span><span class="desc">Démarrer une transaction</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/:schema/transactions</span><span class="desc">Lister les transactions ouvertes</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/:schema/transactions/:txID</span><span class="desc">Statut d'une transaction</span></div>
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/commit</span><span class="desc">Commit atomique</span></div>
+                    <div class="endpoint-row"><span class="method post">POST</span><span class="path">/:schema/transactions/:txID/rollback</span><span class="desc">Annuler</span></div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <div class="endpoint-group-header">
+                    <span class="endpoint-group-icon">⚙️</span>
+                    <span class="endpoint-group-title">Ops & Monitoring</span>
+                </div>
+                <div class="endpoint-group-body">
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/ops/liveness</span><span class="desc">Probe de vie</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/ops/readiness</span><span class="desc">Disponibilité (ping DB)</span></div>
+                    <div class="endpoint-row"><span class="method get">GET</span><span class="path">/ops/metrics</span><span class="desc">Métriques Prometheus</span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== DÉMARRAGE RAPIDE ===== -->
+        <div style="background:#0f161f; border-radius:20px; padding:1.8rem; border:1px solid #252f3c; margin:2.5rem 0;">
+            <h2 style="font-size:1.3rem; font-weight:500; margin-bottom:0.8rem;">🚀 Démarrage rapide</h2>
+            <pre style="background:#0b0e14; padding:1rem 1.5rem; border-radius:16px; overflow-x:auto; font-size:0.9rem; border:1px solid #1f2833; color:#b0c8e5;"><code>git clone https://github.com/laurentpoirierfr/rest-trans.git
+            cd rest-trans
+            make docker-compose-up
+            curl http://localhost:3000/public/users
+            curl http://localhost:3000/docs</code></pre>
+        </div>
+
+        <!-- ===== CTA / FOOTER ===== -->
+        <div class="cta">
+            <div>
+                <a href="https://github.com/laurentpoirierfr/rest-trans" class="btn">⭐ Voir sur GitHub</a>
+                <a href="#docs" class="btn btn-outline" style="margin-left:0.8rem;">📘 Explorer l'API</a>
+            </div>
+            <div class="footer-links">
+                <span>📄 Licence MIT</span>
+                <a href="#">Documentation</a>
+                <a href="#">Issues</a>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:2.5rem; color:#3a4a5a; font-size:0.85rem; border-top:1px solid #1a2330; padding-top:1.5rem;">
+            rest-trans · un binaire Go + PostgreSQL · zéro framework, zéro ORM
+        </div>
+
+    </div>
+</body>
+</html>

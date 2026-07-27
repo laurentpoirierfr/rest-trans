@@ -3,8 +3,11 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/laurentpoirierfr/rest-trans/tests/testutil"
 )
 
 func TestTransactionStart(t *testing.T) {
@@ -31,6 +34,8 @@ func TestTransactionStart(t *testing.T) {
 }
 
 func TestTransactionStage(t *testing.T) {
+	suite.SetupTest(t)
+
 	startResp, _ := http.Post(
 		suite.ServerURL+"/public/transactions",
 		"application/json",
@@ -42,7 +47,8 @@ func TestTransactionStage(t *testing.T) {
 
 	txID := startResult["tx"].(string)
 
-	body := `{"name": "Tx User", "email": "tx@example.com"}`
+	email := testutil.UniqueEmail("tx-stage")
+	body := fmt.Sprintf(`{"name": "Tx User", "email": "%s"}`, email)
 	req, _ := http.NewRequest(
 		"POST",
 		suite.ServerURL+"/public/users",
@@ -100,6 +106,8 @@ func TestTransactionGetStatus(t *testing.T) {
 }
 
 func TestTransactionCommit(t *testing.T) {
+	suite.SetupTest(t)
+
 	startResp, _ := http.Post(
 		suite.ServerURL+"/public/transactions",
 		"application/json",
@@ -111,7 +119,8 @@ func TestTransactionCommit(t *testing.T) {
 
 	txID := startResult["tx"].(string)
 
-	body := `{"name": "Committed User", "email": "committed@example.com"}`
+	email := testutil.UniqueEmail("tx-commit")
+	body := fmt.Sprintf(`{"name": "Committed User", "email": "%s"}`, email)
 	req, _ := http.NewRequest(
 		"POST",
 		suite.ServerURL+"/public/users",
@@ -142,7 +151,7 @@ func TestTransactionCommit(t *testing.T) {
 		t.Errorf("Expected status 'committed', got %v", result["status"])
 	}
 
-	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq.committed@example.com")
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email)
 	var users []map[string]interface{}
 	json.NewDecoder(getResp.Body).Decode(&users)
 	getResp.Body.Close()
@@ -153,6 +162,8 @@ func TestTransactionCommit(t *testing.T) {
 }
 
 func TestTransactionRollback(t *testing.T) {
+	suite.SetupTest(t)
+
 	startResp, _ := http.Post(
 		suite.ServerURL+"/public/transactions",
 		"application/json",
@@ -164,7 +175,8 @@ func TestTransactionRollback(t *testing.T) {
 
 	txID := startResult["tx"].(string)
 
-	body := `{"name": "Rolled Back User", "email": "rollback@example.com"}`
+	email := testutil.UniqueEmail("tx-rollback")
+	body := fmt.Sprintf(`{"name": "Rolled Back User", "email": "%s"}`, email)
 	req, _ := http.NewRequest(
 		"POST",
 		suite.ServerURL+"/public/users",
@@ -195,13 +207,13 @@ func TestTransactionRollback(t *testing.T) {
 		t.Errorf("Expected status 'rolled_back', got %v", result["status"])
 	}
 
-	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq.rollback@example.com")
+	getResp, _ := http.Get(suite.ServerURL + "/public/users?email=eq." + email)
 	var users []map[string]interface{}
 	json.NewDecoder(getResp.Body).Decode(&users)
 	getResp.Body.Close()
 
 	if len(users) != 0 {
-		t.Errorf("Expected no users after rollback, got %d", len(users))
+		t.Errorf("Expected no users after rollback, got %d users", len(users))
 	}
 }
 
