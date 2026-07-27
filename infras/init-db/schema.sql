@@ -112,3 +112,17 @@ FROM users
 WHERE email NOT LIKE '%deleted%';
 
 COMMENT ON TABLE active_users IS 'Vue des utilisateurs actifs (read-only)';
+
+-- ==========================================
+-- FULL-TEXT SEARCH (pour tests FTS)
+-- ==========================================
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    body tsvector NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_articles_body ON articles USING gin(body);
+
+COMMENT ON TABLE articles IS '@fts_language english';
